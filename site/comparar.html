@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparar vereadores — Câmara de Botucatu em Dados</title>
+<meta name="description" content="Compare a produção dos vereadores de Botucatu por tipo de atuação.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+<header class="site-header" id="site-header"></header>
+<nav class="site-nav" id="site-nav"></nav>
+
+<main class="container">
+  <h2 class="page-title">Comparar vereadores</h2>
+  <p class="page-subtitle">Cada tipo de atuação é comparado separadamente, para não misturar coisas muito diferentes (uma homenagem não é o mesmo que uma proposta de lei).</p>
+
+  <div class="pill-group" id="pill-familias"></div>
+
+  <div class="card chart-card"><div class="chart-wrap"><canvas id="grafico-ranking"></canvas></div></div>
+
+  <div id="bloco-aprovacao" style="display:none">
+    <h3 class="section-title">Taxa de aprovação</h3>
+    <p class="section-caption">Considerando só vereadores com pelo menos 3 propostas de lei/normas apresentadas.</p>
+    <div class="card chart-card"><div class="chart-wrap"><canvas id="grafico-taxa"></canvas></div></div>
+  </div>
+</main>
+
+<footer class="site-footer" id="site-footer"></footer>
+
+<script src="assets/data.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/charts.js"></script>
+<script>
+montarLayout("comparar");
+
+let graficoRanking = null;
+let graficoTaxa = null;
+
+function renderizar(dados, familia) {
+  const { proposituras, vereadoresPorId } = dados;
+  const subset = proposituras.filter((p) => p.familia === familia && (p.autores || []).length);
+
+  const contagemPorVereador = {};
+  subset.forEach((p) => p.autores.forEach((id) => {
+    contagemPorVereador[id] = (contagemPorVereador[id] || 0) + 1;
+  }));
+  const ranking = Object.entries(contagemPorVereador)
+    .map(([id, total]) => ({ id: Number(id), nome: CamaraData.nomeExibicao(vereadoresPorId[id]) || "?", total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 15)
+    .sort((a, b) => a.total - b.total);
+
+  if (graficoRanking) graficoRanking.destroy();
+  graficoRanking = graficoBarrasHorizontais(
+    "grafico-ranking",
+    ranking.map((r) => r.nome),
+    ranking.map((r) => r.total),
+    ranking.map(() => CamaraData.CORES_FAMILIA[familia])
+  );
+
+  const blocoAprovacao = document.getElementById("bloco-aprovacao");
+  if (familia === "Normativos") {
+    blocoAprovacao.style.display = "";
+    const aprovadosPorVereador = {};
+    subset.filter((p) => p.status === "Aprovado").forEach((p) => p.autores.forEach((id) => {
+      aprovadosPorVereador[id] = (aprovadosPorVereador[id] || 0) + 1;
+    }));
+    const taxas = Object.entries(contagemPorVereador)
+      .filter(([, total]) => total >= 3)
+      .map(([id, total]) => ({
+        nome: CamaraData.nomeExibicao(vereadoresPorId[id]) || "?",
+        taxa: Math.round(((aprovadosPorVereador[id] || 0) / total) * 100),
+      }))
+      .sort((a, b) => a.taxa - b.taxa);
+
+    if (graficoTaxa) graficoTaxa.destroy();
+    graficoTaxa = graficoBarrasHorizontais(
+      "grafico-taxa",
+      taxas.map((t) => t.nome),
+      taxas.map((t) => t.taxa),
+      taxas.map(() => CamaraData.CORES_STATUS["Aprovado"])
+    );
+  } else {
+    blocoAprovacao.style.display = "none";
+  }
+}
+
+CamaraData.carregar().then((dados) => {
+  atualizarCabecalho(dados.meta);
+
+  const familiasPresentes = CamaraData.FAMILIAS_ORDEM.filter((f) => dados.proposituras.some((p) => p.familia === f));
+  const pillContainer = document.getElementById("pill-familias");
+  pillContainer.innerHTML = familiasPresentes
+    .map((f, i) => `<button class="pill ${i === 0 ? "active" : ""}" data-familia="${f}">${dados.proposituras.find((p) => p.familia === f).familia_label}</button>`)
+    .join("");
+
+  pillContainer.querySelectorAll(".pill").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      pillContainer.querySelectorAll(".pill").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderizar(dados, btn.dataset.familia);
+    });
+  });
+
+  renderizar(dados, familiasPresentes[0]);
+});
+</script>
+</body>
+</html>

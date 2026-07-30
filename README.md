@@ -1,11 +1,13 @@
 # Câmara de Botucatu em Dados
 
-Dashboard público com a atuação dos vereadores da Câmara Municipal de Botucatu: proposituras
-apresentadas, taxa de aprovação de projetos, rankings e busca — construído a partir de scraping
-do site oficial (`camarabotucatu.sp.gov.br`).
+Site público com a atuação dos vereadores da Câmara Municipal de Botucatu: propostas
+apresentadas, taxa de aprovação, comparativos e busca — construído a partir de scraping do site
+oficial (`camarabotucatu.sp.gov.br`).
 
-Projeto pessoal de aprendizado que evoluiu de notebooks exploratórios (`src/Ciclo1..5.ipynb`,
-histórico mantido no repositório) para um pipeline de coleta + banco SQLite + dashboard Streamlit.
+Projeto pessoal de aprendizado que evoluiu de notebooks exploratórios (`notebooks/Ciclo1..5.ipynb`,
+histórico mantido no repositório) para um pipeline de coleta (Python + SQLite) que alimenta dois
+front-ends: um site estático (HTML/CSS/JS, a "porta de entrada" pública) e um dashboard Streamlit
+(ferramenta interna para análises mais profundas).
 
 ## Arquitetura
 
@@ -16,10 +18,21 @@ src/
 ├── utils.py                  # HTTP com rate limiting/retry, parsing de datas/texto
 ├── scraper_vereadores.py    # Lista de vereadores + perfil (bio, legislaturas, comissões)
 ├── scraper_proposituras.py  # Busca paginada de proposituras (Siscam), autoria multi-vereador
-└── main.py                   # CLI orquestrador
-streamlit_app.py              # Dashboard (Streamlit)
+├── export_json.py            # Exporta o recorte da legislatura atual para site/data/*.json
+└── main.py                   # CLI orquestrador do scraper
+site/                          # Site público estático (HTML/CSS/JS puro, identidade navy/dourado)
+├── index.html                # Visão geral
+├── vereador.html               # Perfil do vereador
+├── comparar.html                # Comparar vereadores por tipo de atuação
+├── tipos.html                    # Explorar por tipo de proposta
+├── buscar.html                    # Busca textual + filtros
+├── assets/{style.css,data.js,layout.js,charts.js}
+└── data/*.json                # Gerado por export_json.py - não versionado (ver .gitignore)
+apps: streamlit_app.py        # Dashboard interno (Streamlit) - ferramenta de análise
 setup_database.py             # Cria o arquivo SQLite e as tabelas
-.github/workflows/scrape.yml  # Roda o scraper sob demanda (validação)
+.github/workflows/
+├── scrape.yml                # Roda o scraper sob demanda (validação, na main)
+└── deploy-site.yml            # Scraper + export_json + publica site/ no GitHub Pages
 ```
 
 ## Fonte dos dados
@@ -75,23 +88,37 @@ python -m src.main --mode full
 python -m src.main --mode vereadores
 python -m src.main --mode proposituras
 
-# Dashboard local
+# Exporta o recorte da legislatura atual para site/data/*.json
+python -m src.export_json
+
+# Site estático local (a partir da pasta site/)
+cd site && python -m http.server 8080   # depois abra http://localhost:8080/index.html
+
+# Dashboard interno (Streamlit)
 streamlit run streamlit_app.py
 ```
 
-O banco gerado é um único arquivo (`data/camara_botucatu.db`), **não versionado no repositório**
-(está no `.gitignore` - é um binário que muda todo dia, sem diff legível). Rode o comando acima
-localmente para gerá-lo antes de usar o dashboard.
+O banco (`data/camara_botucatu.db`) e o JSON exportado (`site/data/*.json`) **não são
+versionados** (estão no `.gitignore`) - são gerados localmente pelos comandos acima, ou pelo
+workflow de deploy antes de publicar o site. Abrir os arquivos `.html` direto (`file://`) não
+funciona - o navegador bloqueia o carregamento do JSON local por segurança; é preciso servir via
+um servidor (local, acima, ou o GitHub Pages em produção).
 
-## Atualização automática
+## Atualização automática e publicação
 
-`.github/workflows/scrape.yml` hoje só roda sob demanda (`workflow_dispatch`), como verificação
-de que o scraper continua funcionando contra o site oficial - o agendamento diário e a publicação
-dos dados estão sendo redesenhados (ver branch `web-publico`: a ideia é exportar os dados para
-JSON e publicar um site estático via GitHub Pages, em vez de commitar o `.db`).
+`.github/workflows/deploy-site.yml` roda diariamente (e a cada push nesta branch): executa o
+scraper, gera o JSON com `export_json.py` e publica a pasta `site/` no GitHub Pages via
+`actions/deploy-pages`. **Configuração única necessária no GitHub**: em Settings → Pages,
+definir Source = "GitHub Actions" no repositório.
+
+`.github/workflows/scrape.yml` continua existindo só como verificação sob demanda de que o
+scraper funciona contra o site oficial (não publica nada).
 
 ## Notebooks antigos
 
-`src/Ciclo1.ipynb` a `Ciclo5.ipynb` e `exemplo_uso.ipynb` são o histórico de aprendizado que deu
-origem a este projeto (scraping da versão antiga do site, hoje fora do ar). Não fazem mais parte
-do pipeline ativo, mas ficam no repositório como registro da evolução do projeto.
+`notebooks/Ciclo1.ipynb` a `Ciclo5.ipynb` e `exemplo_uso.ipynb` são o histórico de aprendizado que
+deu origem a este projeto (scraping da versão antiga do site, hoje fora do ar). Não fazem mais
+parte do pipeline ativo, mas ficam no repositório como registro da evolução do projeto.
+
+`archive/img/` guarda as fotos baixadas pelo scraper antigo (site anterior) - mantidas por
+histórico; o scraper atual não baixa mais fotos, usa o link direto (`foto_url`) do site oficial.

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfil do vereador — Câmara de Botucatu em Dados</title>
+<meta name="description" content="Perfil e propostas apresentadas por cada vereador de Botucatu na legislatura atual.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+<header class="site-header" id="site-header"></header>
+<nav class="site-nav" id="site-nav"></nav>
+
+<main class="container">
+  <h2 class="page-title">Perfil do vereador</h2>
+  <p class="page-subtitle">Escolha um vereador para ver seu histórico e o que apresentou na legislatura atual.</p>
+
+  <div class="field" style="max-width:420px">
+    <label class="field-label" for="select-vereador">Selecione um vereador</label>
+    <select id="select-vereador"></select>
+  </div>
+
+  <div id="perfil-conteudo"></div>
+</main>
+
+<footer class="site-footer" id="site-footer"></footer>
+
+<script src="assets/data.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/charts.js"></script>
+<script>
+montarLayout("vereador");
+
+let DADOS = null;
+let graficoAtual = null;
+
+function paramId() {
+  const p = new URLSearchParams(location.search).get("id");
+  return p ? Number(p) : null;
+}
+
+function montarSelect(vereadores, idSelecionado) {
+  const select = document.getElementById("select-vereador");
+  const ordenados = vereadores.slice().sort((a, b) => CamaraData.nomeExibicao(a).localeCompare(CamaraData.nomeExibicao(b)));
+  select.innerHTML = ordenados
+    .map((v) => `<option value="${v.id}" ${v.id === idSelecionado ? "selected" : ""}>${CamaraData.escapeHtml(CamaraData.nomeExibicao(v))}</option>`)
+    .join("");
+  select.addEventListener("change", () => {
+    const id = Number(select.value);
+    history.replaceState(null, "", `vereador.html?id=${id}`);
+    renderizarPerfil(id);
+  });
+}
+
+function renderizarPerfil(id) {
+  const { proposituras, vereadoresPorId, remuneracao } = DADOS;
+  const vereador = vereadoresPorId[id];
+  const el = document.getElementById("perfil-conteudo");
+  if (!vereador) {
+    el.innerHTML = '<p class="empty-state">Vereador não encontrado.</p>';
+    return;
+  }
+
+  const minhas = proposituras.filter((p) => (p.autores || []).includes(id));
+
+  const legislaturaTxt = vereador.legislaturas
+    .map((l) => `${CamaraData.formatarData(l.data_inicio)} a ${CamaraData.formatarData(l.data_fim)}`)
+    .join(", ");
+
+  const comissoesHtml = vereador.comissoes.length
+    ? `<details><summary>Comissões (${vereador.comissoes.length})</summary>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Comissão</th><th>Cargo</th><th>Início</th><th>Fim</th></tr></thead>
+          <tbody>${vereador.comissoes.map((c) => `<tr>
+            <td class="wrap">${CamaraData.escapeHtml(c.nome)}</td>
+            <td>${CamaraData.escapeHtml(c.cargo)}</td>
+            <td>${CamaraData.formatarData(c.data_inicio)}</td>
+            <td>${CamaraData.formatarData(c.data_fim)}</td>
+          </tr>`).join("")}</tbody>
+        </table></div>
+      </details>`
+    : "";
+
+  const minhaRemuneracao = remuneracao
+    .filter((r) => r.vereador_id === id)
+    .sort((a, b) => (b.ano * 100 + b.mes) - (a.ano * 100 + a.mes));
+  const ultimaRemuneracao = minhaRemuneracao[0];
+  const estim = vereador.estimativa_remuneracao;
+  const estimativaHtml = estim
+    ? `<p class="section-caption"><strong>Estimativa desde o início do mandato (até ${estim.ultima_competencia}):</strong>
+        ${CamaraData.formatarMoeda(estim.estimativa_total)} — ${estim.meses_estimados} meses × ${CamaraData.formatarMoeda(estim.ultimo_proventos)}/mês
+        (valor mais recente conhecido; não considera possíveis reajustes salariais no meio do caminho).</p>`
+    : "";
+  const remuneracaoHtml = ultimaRemuneracao
+    ? `<h3 class="section-title">Remuneração</h3>
+       <p class="section-caption">Segundo o portal de transparência da Câmara (fonte separada da Siscam) - valor bruto, antes de descontos.</p>
+       <p><strong>Valor mensal atual:</strong> ${CamaraData.formatarMoeda(ultimaRemuneracao.proventos)} como ${CamaraData.escapeHtml(CamaraData.tituloCase(ultimaRemuneracao.cargo))}
+        (competência ${CamaraData.NOMES_MES[ultimaRemuneracao.mes - 1]}/${ultimaRemuneracao.ano})</p>
+       ${estimativaHtml}`
+    : "";
+
+  el.innerHTML = `
+    <div class="card perfil-header">
+      ${vereador.foto_url ? `<img class="foto" src="${CamaraData.escapeHtml(vereador.foto_url)}" alt="Foto de ${CamaraData.escapeHtml(vereador.nome)}">` : ""}
+      <div class="perfil-info">
+        <h2>${CamaraData.escapeHtml(CamaraData.nomeExibicao(vereador))}</h2>
+        <p class="section-caption" style="margin:-.4rem 0 .5rem">Nome completo: ${CamaraData.escapeHtml(vereador.nome)}</p>
+        <p><strong>Partido:</strong> ${CamaraData.escapeHtml(vereador.partido) || "não informado"}</p>
+        ${vereador.licenciado ? `<p><span class="status-pill" style="background:#d98c00">Licenciado</span> — atualmente substituído por um suplente, por isso não tem remuneração própria a exibir abaixo.</p>` : ""}
+        ${vereador.bio ? `<details><summary>Biografia</summary><p>${CamaraData.escapeHtml(vereador.bio)}</p></details>` : ""}
+        ${legislaturaTxt ? `<p><strong>Mandato atual:</strong> ${legislaturaTxt}</p>` : ""}
+        ${comissoesHtml}
+      </div>
+    </div>
+
+    ${remuneracaoHtml}
+
+    <h3 class="section-title">Propostas apresentadas (${minhas.length})</h3>
+    <div class="card chart-card"><div class="chart-wrap"><canvas id="grafico-perfil-tipo"></canvas></div></div>
+
+    <h3 class="section-title">Filtrar propostas</h3>
+    <div class="filters-row">
+      <div class="field"><label class="field-label" for="f-tipo">Tipo</label><select id="f-tipo"><option value="">Todos os tipos</option></select></div>
+      <div class="field"><label class="field-label" for="f-situacao">Situação</label><select id="f-situacao"><option value="">Todas as situações</option></select></div>
+    </div>
+    <div id="tabela-perfil"></div>
+  `;
+
+  // gráfico por tipo
+  const porTipo = CamaraData.agrupar(minhas, "tipo");
+  const tipos = Object.keys(porTipo).sort((a, b) => porTipo[a] - porTipo[b]);
+  const coresTipo = tipos.map((t) => {
+    const item = minhas.find((p) => p.tipo === t);
+    return CamaraData.CORES_FAMILIA[item.familia];
+  });
+  if (graficoAtual) graficoAtual.destroy();
+  if (tipos.length) {
+    graficoAtual = graficoBarrasHorizontais("grafico-perfil-tipo", tipos, tipos.map((t) => porTipo[t]), coresTipo);
+  }
+
+  // filtros
+  const selTipo = document.getElementById("f-tipo");
+  const selSituacao = document.getElementById("f-situacao");
+  [...new Set(minhas.map((p) => p.tipo))].sort().forEach((t) => {
+    selTipo.innerHTML += `<option value="${CamaraData.escapeHtml(t)}">${CamaraData.escapeHtml(t)}</option>`;
+  });
+  [...new Set(minhas.map((p) => p.situacao).filter(Boolean))].sort().forEach((s) => {
+    selSituacao.innerHTML += `<option value="${CamaraData.escapeHtml(s)}">${CamaraData.escapeHtml(s)}</option>`;
+  });
+
+  function aplicarFiltro() {
+    let filtradas = minhas;
+    if (selTipo.value) filtradas = filtradas.filter((p) => p.tipo === selTipo.value);
+    if (selSituacao.value) filtradas = filtradas.filter((p) => p.situacao === selSituacao.value);
+    CamaraData.tabelaProposituras("tabela-perfil", filtradas);
+  }
+  selTipo.addEventListener("change", aplicarFiltro);
+  selSituacao.addEventListener("change", aplicarFiltro);
+  aplicarFiltro();
+}
+
+CamaraData.carregar().then((dados) => {
+  DADOS = dados;
+  atualizarCabecalho(dados.meta);
+  const idInicial = paramId() && dados.vereadoresPorId[paramId()] ? paramId() : dados.vereadores[0].id;
+  montarSelect(dados.vereadores, idInicial);
+  renderizarPerfil(idInicial);
+});
+</script>
+</body>
+</html>

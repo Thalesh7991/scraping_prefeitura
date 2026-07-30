@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visão geral — Câmara de Botucatu em Dados</title>
+<meta name="description" content="O que os vereadores de Botucatu em exercício têm proposto na legislatura atual.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+<header class="site-header" id="site-header"></header>
+<nav class="site-nav" id="site-nav"></nav>
+
+<main class="container">
+  <h2 class="page-title">Visão geral</h2>
+  <p class="page-subtitle">Um retrato geral do que a Câmara tem feito na legislatura atual.</p>
+
+  <div class="grid" id="stat-tiles">
+    <div class="card stat-tile"><p class="stat-label">Propostas apresentadas</p><p class="stat-value" id="stat-total">—</p></div>
+    <div class="card stat-tile"><p class="stat-label">Propostas de lei e normas</p><p class="stat-value" id="stat-normativos">—</p></div>
+    <div class="card stat-tile"><p class="stat-label">Taxa de aprovação (leis e normas)</p><p class="stat-value" id="stat-taxa">—</p></div>
+    <div class="card stat-tile"><p class="stat-label">Vereadores em exercício</p><p class="stat-value" id="stat-vereadores">—</p></div>
+    <div class="card stat-tile"><p class="stat-label">Gasto com remuneração desde o início do mandato</p><p class="stat-value moeda" id="stat-remuneracao">—</p></div>
+  </div>
+  <p class="section-caption" id="legenda-remuneracao"></p>
+
+  <h3 class="section-title">O que os vereadores têm proposto</h3>
+  <p class="section-caption">Nem toda proposta é uma lei - veja abaixo os diferentes tipos de atuação.</p>
+  <div class="card chart-card">
+    <div class="chart-wrap"><canvas id="grafico-familia"></canvas></div>
+  </div>
+  <details>
+    <summary>O que significa cada tipo?</summary>
+    <ul>
+      <li><strong>Propostas de lei e normas</strong>: Projetos de Lei e afins - podem virar lei/norma se aprovados.</li>
+      <li><strong>Pedidos e solicitações</strong>: Indicações (sugestões ao Executivo) e Requerimentos (pedidos formais/fiscalização).</li>
+      <li><strong>Homenagens e manifestações</strong>: Moções - aplausos, repúdio, pesar. Não têm efeito de lei.</li>
+      <li><strong>Outros</strong>: prestação de contas e vetos.</li>
+    </ul>
+  </details>
+
+  <h3 class="section-title">Evolução ao longo do mandato</h3>
+  <div class="card chart-card">
+    <div class="chart-wrap"><canvas id="grafico-evolucao"></canvas></div>
+  </div>
+
+  <h3 class="section-title">Situação das propostas de lei e normas</h3>
+  <p class="section-caption">Só faz sentido falar em "aprovado/rejeitado" para propostas de lei e normas - homenagens e pedidos não passam pelo mesmo tipo de votação.</p>
+  <div class="card chart-card">
+    <div class="chart-wrap"><canvas id="grafico-situacao"></canvas></div>
+  </div>
+</main>
+
+<footer class="site-footer" id="site-footer"></footer>
+
+<script src="assets/data.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/charts.js"></script>
+<script>
+montarLayout("index");
+
+CamaraData.carregar().then(({ proposituras, meta, remuneracao }) => {
+  atualizarCabecalho(meta);
+
+  const normativos = proposituras.filter((p) => p.familia === "Normativos");
+  const aprovados = normativos.filter((p) => p.status === "Aprovado");
+  const taxa = normativos.length ? Math.round((aprovados.length / normativos.length) * 100) : 0;
+
+  document.getElementById("stat-total").textContent = CamaraData.formatarNumero(proposituras.length);
+  document.getElementById("stat-normativos").textContent = CamaraData.formatarNumero(normativos.length);
+  document.getElementById("stat-taxa").textContent = `${taxa}%`;
+  document.getElementById("stat-vereadores").textContent = meta.total_vereadores;
+
+  document.getElementById("stat-remuneracao").textContent = CamaraData.formatarMoeda(meta.estimativa_gasto_mandato_total);
+  const totalConfirmado = remuneracao.reduce((soma, r) => soma + (r.proventos || 0), 0);
+  const periodo = CamaraData.periodoRemuneracao(remuneracao);
+  document.getElementById("legenda-remuneracao").textContent = meta.estimativa_gasto_mandato_total
+    ? `Estimativa do valor bruto pago a vereadores desde o início do mandato (${meta.legislatura_atual_inicio_display}) até ${meta.estimativa_gasto_mandato_competencia}, mês a mês, pelo valor mais recente conhecido de cada um - já considera corretamente quando um suplente assumiu no lugar de um titular licenciado. Não considera possíveis reajustes salariais ao longo do caminho. ${CamaraData.formatarMoeda(totalConfirmado)} desse total já foram efetivamente confirmados nos meses com dados coletados (${periodo}); o restante é projeção.`
+    : "";
+
+  // Por família
+  const porFamilia = CamaraData.agrupar(proposituras, "familia_label");
+  const labelsUnicos = CamaraData.FAMILIAS_ORDEM
+    .map((f) => proposituras.find((p) => p.familia === f)?.familia_label)
+    .filter(Boolean);
+  const valoresFamilia = labelsUnicos.map((l) => porFamilia[l] || 0);
+  const coresFamilia = CamaraData.FAMILIAS_ORDEM.filter((f) => proposituras.some((p) => p.familia === f)).map((f) => CamaraData.CORES_FAMILIA[f]);
+  graficoBarrasHorizontais("grafico-familia", labelsUnicos, valoresFamilia, coresFamilia);
+
+  // Evolução por ano
+  const porAnoFamilia = {};
+  proposituras.forEach((p) => {
+    if (!p.data) return;
+    const ano = p.data.slice(0, 4);
+    porAnoFamilia[ano] = porAnoFamilia[ano] || {};
+    porAnoFamilia[ano][p.familia] = (porAnoFamilia[ano][p.familia] || 0) + 1;
+  });
+  const anos = Object.keys(porAnoFamilia).sort();
+  const familiasPresentes = CamaraData.FAMILIAS_ORDEM.filter((f) => proposituras.some((p) => p.familia === f));
+  const series = familiasPresentes.map((f) => ({
+    label: proposituras.find((p) => p.familia === f).familia_label,
+    data: anos.map((a) => porAnoFamilia[a][f] || 0),
+    color: CamaraData.CORES_FAMILIA[f],
+  }));
+  graficoLinhaTempo("grafico-evolucao", anos, series);
+
+  // Situação dos normativos
+  const porStatus = CamaraData.agrupar(normativos, "status");
+  const statusPresentes = CamaraData.STATUS_ORDEM.filter((s) => porStatus[s]);
+  graficoBarrasStatus(
+    "grafico-situacao",
+    statusPresentes,
+    statusPresentes.map((s) => porStatus[s]),
+    statusPresentes.map((s) => CamaraData.CORES_STATUS[s])
+  );
+});
+</script>
+</body>
+</html>

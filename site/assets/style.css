@@ -1,0 +1,318 @@
+/* Câmara de Botucatu em Dados — ferramenta independente de acompanhamento
+   legislativo. Usa o azul-marinho da Câmara apenas como referência sutil
+   (texto/acentos), não como identidade visual copiada - o objetivo é parecer
+   um produto de dados moderno, não uma extensão do site institucional. */
+
+:root {
+  color-scheme: light;
+  --navy: #0b2055;
+  --navy-soft: #eef1f9;
+  --gold: #c8862f;
+
+  --ink: #12141a;
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --text: #21242b;
+  --text-secondary: #565a63;
+  --text-muted: #83868f;
+  --border: #e6e5e1;
+
+  /* paleta categórica validada (acessível) - usada só para dados, não para o chrome */
+  --cat-normativos: #2a78d6;
+  --cat-fiscalizacao: #eb6834;
+  --cat-manifestacoes: #1baf7a;
+  --cat-outros: #eda100;
+
+  /* status (fixos, com significado - nunca reaproveitados como cor de série) */
+  --status-aprovado: #0ca30c;
+  --status-rejeitado: #d03b3b;
+  --status-tramitando: #d98c00;
+  --status-arquivado: #ec835a;
+  --status-outro: #83868f;
+
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(18, 20, 26, 0.04), 0 4px 16px rgba(18, 20, 26, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --navy-soft: #182036;
+    --bg: #0f1115;
+    --surface: #171a21;
+    --ink: #f4f5f7;
+    --text: #e7e8ea;
+    --text-secondary: #b7bac2;
+    --text-muted: #888c96;
+    --border: #2a2e37;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --navy-soft: #182036;
+  --bg: #0f1115;
+  --surface: #171a21;
+  --ink: #f4f5f7;
+  --text: #e7e8ea;
+  --text-secondary: #b7bac2;
+  --text-muted: #888c96;
+  --border: #2a2e37;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+h1, h2, h3, .stat-value { letter-spacing: -0.01em; }
+
+a { color: var(--navy); text-underline-offset: 2px; }
+a:hover { color: var(--gold); }
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* ---------- Cabeçalho ---------- */
+.site-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 1.5rem 0 1.25rem;
+}
+.site-header .container {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  flex-wrap: wrap;
+}
+.site-header .brandmark {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--navy);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+.site-header h1 {
+  font-size: 1.3rem;
+  margin: 0;
+  font-weight: 800;
+  color: var(--ink);
+}
+.site-header p {
+  margin: .2rem 0 0;
+  color: var(--text-secondary);
+  font-size: .88rem;
+  max-width: 640px;
+}
+.header-text { flex: 1; min-width: 240px; }
+
+/* ---------- Navegação ---------- */
+.site-nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.site-nav .container {
+  display: flex;
+  gap: .1rem;
+  flex-wrap: wrap;
+}
+.site-nav a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: .8rem .85rem;
+  font-size: .88rem;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  transition: border-color .15s ease, color .15s ease;
+}
+.site-nav a:hover { color: var(--ink); }
+.site-nav a.active {
+  color: var(--ink);
+  border-bottom-color: var(--gold);
+}
+
+/* ---------- Layout geral ---------- */
+main { padding: 2rem 0 3rem; }
+h2.page-title { font-size: 1.6rem; margin: 0 0 .3rem; font-weight: 800; color: var(--ink); }
+.page-subtitle { color: var(--text-secondary); margin: 0 0 1.75rem; max-width: 720px; }
+.section-title { font-size: 1.05rem; margin: 2.25rem 0 .3rem; font-weight: 700; color: var(--ink); }
+.section-caption { color: var(--text-muted); font-size: .86rem; margin: 0 0 1rem; }
+
+/* ---------- Cartões / grid ---------- */
+.grid {
+  display: grid;
+  gap: .9rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.25rem;
+}
+.stat-tile { position: relative; overflow: hidden; }
+.stat-tile .stat-label {
+  font-size: .8rem;
+  color: var(--text-muted);
+  margin: 0 0 .4rem;
+  font-weight: 600;
+}
+.stat-tile .stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--navy);
+  overflow-wrap: break-word;
+}
+.stat-tile .stat-value.moeda { font-size: 1.3rem; white-space: nowrap; }
+:root[data-theme="dark"] .stat-tile .stat-value { color: #8fb3ef; }
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .stat-tile .stat-value { color: #8fb3ef; }
+}
+
+.chart-card { padding: 1.25rem; }
+.chart-wrap { position: relative; height: 320px; }
+
+/* ---------- Botões / controles ---------- */
+.btn {
+  display: inline-block;
+  background: transparent;
+  color: var(--navy);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  padding: .4rem .85rem;
+  font-size: .82rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--navy); background: var(--navy-soft); color: var(--navy); }
+.btn-primary {
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+}
+.btn-primary:hover { background: #142a68; color: #fff; }
+
+select, input[type="text"], input[type="search"] {
+  font: inherit;
+  padding: .55rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+select:focus, input:focus { outline: 2px solid var(--navy-soft); border-color: var(--navy); }
+label.field-label {
+  display: block;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 .3rem;
+}
+.field { margin-bottom: 1rem; }
+.filters-row {
+  display: grid;
+  gap: .9rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-bottom: 1.25rem;
+}
+
+/* pills de família / tipo de atuação (radio-like) */
+.pill-group { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.pill {
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: .45rem .9rem;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pill.active {
+  border-color: var(--navy);
+  background: var(--navy-soft);
+  color: var(--navy);
+}
+
+/* ---------- Tabela ---------- */
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+table { width: 100%; border-collapse: collapse; background: var(--surface); font-size: .89rem; }
+th, td { text-align: left; padding: .65rem .8rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td.wrap, th.wrap { white-space: normal; }
+th { color: var(--text-muted); font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+tbody tr:hover { background: var(--navy-soft); }
+
+/* status pill dentro de tabela */
+.status-pill {
+  display: inline-block;
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  font-size: .76rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* ---------- Perfil do vereador ---------- */
+.perfil-header { display: flex; gap: 1.25rem; flex-wrap: wrap; align-items: flex-start; }
+.perfil-header img.foto {
+  width: 132px; height: 132px; object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.perfil-info { flex: 1; min-width: 240px; }
+.perfil-info h2 { margin: 0 0 .25rem; font-weight: 800; color: var(--ink); }
+details { margin-top: .6rem; }
+details summary { cursor: pointer; font-weight: 600; color: var(--navy); }
+
+/* ---------- Rodapé ---------- */
+.site-footer {
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: .82rem;
+  padding: 1.75rem 0 2.5rem;
+}
+.site-footer .fonte-oficial {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .6rem;
+  opacity: .85;
+}
+.site-footer .fonte-oficial img { height: 22px; width: auto; }
+
+/* ---------- Utilidades ---------- */
+.empty-state { color: var(--text-muted); font-style: italic; padding: 1rem 0; }
+.legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .82rem; color: var(--text-secondary); margin-top: .5rem; }
+.legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: .35rem; vertical-align: middle; }
+
+@media (max-width: 640px) {
+  .site-header h1 { font-size: 1.1rem; }
+  .stat-tile .stat-value { font-size: 1.6rem; }
+  .site-nav .container { gap: 0; }
+  .site-nav a { padding: .7rem .55rem; font-size: .82rem; }
+}
