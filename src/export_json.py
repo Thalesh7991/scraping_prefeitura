@@ -57,6 +57,9 @@ def exportar():
         "SELECT * FROM proposituras WHERE data >= ? ORDER BY data DESC", (legislatura_atual_inicio,)
     ).fetchall()
     autores_rows = conn.execute("SELECT * FROM propositura_autores").fetchall()
+    remuneracao_rows = conn.execute(
+        "SELECT * FROM remuneracao_vereadores WHERE vereador_id IS NOT NULL ORDER BY ano, mes"
+    ).fetchall()
     conn.close()
 
     autores_por_propositura = {}
@@ -92,6 +95,14 @@ def exportar():
             "autores": autores_por_propositura.get(p["id"], []),
         })
 
+    remuneracao_json = [
+        {
+            "vereador_id": r["vereador_id"], "ano": r["ano"], "mes": r["mes"], "cargo": r["cargo"],
+            "proventos": r["proventos"], "liquido": r["liquido"],
+        }
+        for r in remuneracao_rows
+    ]
+
     ano, mes, _ = legislatura_atual_inicio.split("-")
     meta = {
         "legislatura_atual_inicio": legislatura_atual_inicio,
@@ -106,9 +117,13 @@ def exportar():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     _escrever("vereadores.json", vereadores_json)
     _escrever("proposituras.json", proposituras_json)
+    _escrever("remuneracao.json", remuneracao_json)
     _escrever("meta.json", meta)
 
-    print(f"Exportado: {len(vereadores_json)} vereadores, {len(proposituras_json)} proposituras -> {OUTPUT_DIR}")
+    print(
+        f"Exportado: {len(vereadores_json)} vereadores, {len(proposituras_json)} proposituras, "
+        f"{len(remuneracao_json)} registros de remuneração -> {OUTPUT_DIR}"
+    )
 
 
 if __name__ == "__main__":

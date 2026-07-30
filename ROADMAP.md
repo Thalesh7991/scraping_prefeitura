@@ -2,6 +2,29 @@
 
 Backlog de ideias discutidas e ainda não implementadas, para não perder o contexto entre sessões.
 
+## Feito
+
+### Remuneração dos vereadores (salário) — `src/scraper_transparencia.py`
+Implementado em 2026-07-30. Usa Playwright contra o portal de transparência de terceiros
+(Fiorilli) - ver detalhes técnicos da investigação no item "Gastos da Câmara" abaixo. Resultado:
+seção **Servidores → Servidores Ativos** do portal tem nome, cargo e valor líquido/mês, batendo
+100% com os nomes da nossa tabela `vereadores` (76 registros coletados para 2026, zero sem
+correspondência). Sabe distinguir titular licenciado de suplente que assumiu o cargo (o suplente
+aparece com cargo "VEREADOR SUPLENTE" recebendo o salário, o titular licenciado não aparece).
+
+**Limitação conhecida**: o seletor global "Escolha o Exercício" (trocar de ano) trava o portal
+num estado de "Processando..." que não retorna em tempo hábil (bug do próprio portal, não do
+nosso scraper) - por isso só coletamos o ano corrente de forma confiável por enquanto; anos
+anteriores (2025, ou histórico 2021-2024) ficam pendentes até resolvermos essa troca de ano ou
+encontrarmos outro caminho (ex.: parâmetro de URL direto, se existir).
+
+Diárias e Passagens e Verbas Indenizatórias foram descartadas nessa investigação (ver abaixo) -
+não fazem parte do que foi implementado.
+
+`src/export_json.py` já gera `site/data/remuneracao.json` com esses dados. **Ainda falta**: uma
+página no site (`site/`) pra exibir isso - não construída nesta rodada, só o scraper + banco +
+JSON estão prontos.
+
 ## Em aberto
 
 ### 1. Classificação por Tema/Assunto (o que a Câmara está tratando de fato)
@@ -34,37 +57,33 @@ período), ou propôs poucos projetos mas de mais peso/qualidade. Decisão pende
 número cru mesmo assim (é fato) mas com contexto visível ao lado (data de início no mandato,
 status licenciado) — a validar o formato exato com o usuário antes de programar.
 
-### 3. Gastos da Câmara (salários, diárias/viagens, outras despesas)
-Investigação feita em 2026-07-30 na página `/Transparencia` do site oficial.
+### 3. Gastos da Câmara — próximos passos (parte já feita, ver "Feito" acima)
+Investigação original em 2026-07-30 na página `/Transparencia` do site oficial, que levou ao
+portal de terceiros (Fiorilli) em `https://botucatusp.dcfiorilli.com.br:879/transparenciacamara/`
+- ver `src/scraper_transparencia.py` pro que já foi implementado (salário/remuneração).
 
-**O que existe**: a própria Câmara não tem uma seção de gastos na Siscam - o link
-"Transparência" do menu principal só repete o menu do site. Porém, o rodapé desse menu aponta pra
-um **portal de transparência de terceiros** (fornecedor Fiorilli, comum em prefeituras/câmaras
-brasileiras), em `https://botucatusp.dcfiorilli.com.br:879/transparenciacamara/`. Esse portal TEM
-dados estruturados relevantes:
-- **Diárias e Passagens** (`HomeDiarias.ASPX`) — exatamente "viagens"
-- **Servidores / Relatório de Servidores / Relação de Cargos Providos e Vagos** — provavelmente
-  folha de pagamento/salários
-- **Verbas Indenizatórias** — pagamentos de indenização (item sensível de transparência para
-  vereadores especificamente)
-- Dezenas de relatórios de **Despesas** (por fornecedor, elemento, órgão, função, etc.),
-  **Contratos** e **Licitações**
+**Ainda não implementado dessa investigação**:
+- **Resolver a troca de "Exercício"** (ano) para coletar 2025 e o histórico 2021-2024 - hoje só
+  o ano corrente é coletado (ver limitação em "Feito" acima).
+- **Diárias e Passagens** (`HomeDiarias.ASPX`) - checado e **descartado por baixo valor**: só 8
+  registros em 5+ anos, todos pagos a uma empresa de cartão corporativo (GIMAVE), não a
+  vereadores por nome. Se quisermos o gasto individual de viagem, o caminho seria "Cartões
+  Corporativos/Suprimentos de Fundos" (não investigado ainda).
+- **Verbas Indenizatórias** - checado e **descartado**: zero registros em todo o período
+  2021-2026 para essa Câmara.
+- Dezenas de outros relatórios de **Despesas** (por fornecedor, elemento, órgão, função, etc.),
+  **Contratos** e **Licitações** existem no mesmo portal, não explorados.
 
-**O problema técnico**: é um site **ASP.NET WebForms antigo**. As tabelas de dados não vêm num GET
-simples (testei `HomeDiarias.ASPX` direto: página carrega mas sem nenhum valor "R$" - os dados só
-aparecem depois de um filtro interativo via postback). A página de Servidores
-(`ServidoresTeste.aspx`) retornou **erro 500** ao acessar direto, sem uma sessão/contexto válido
-vindo da home. Os botões de exportar CSV/XLS também são botões de postback (`__doPostBack`), não
-links diretos de download.
-
-Ou seja: dá pra pegar esses dados, mas exige **replicar o ciclo de postback do ASP.NET**
-(capturar `__VIEWSTATE`/`__EVENTVALIDATION` da página e reenviar via POST) **ou** automação via
-navegador (Playwright) - um scraper bem mais complexo que o da Siscam (que é GET puro). Não é
-"fazer rapidinho" - é uma frente de trabalho própria, com um scraper novo e dedicado.
-
-**Recomendação**: vale a pena pela relevância (gasto de dinheiro público é um dos pilares de
-fiscalização mais importantes), mas tratar como iniciativa separada do site atual, não como
-extensão trivial do scraper existente.
+**Detalhes técnicos da plataforma** (relevantes se formos mexer em outra seção do mesmo portal):
+é DevExpress ASPxGridView sobre ASP.NET WebForms, com o conteúdo de cada seção carregado num
+iframe (`frmPaginaAspx`). Filtros de data/ano/mês são controles DevExpress que não respondem a
+digitação normal - é preciso usar a API cliente
+(`window.<idDoControle>.SetValue(...)` + `.RaiseValueChangedEvent()`), e o valor esperado no
+combo de mês é o número com dois dígitos como string (`"07"`), não o nome (`"Julho"`) nem o
+número sem zero à esquerda. O botão de exportar CSV (`#btnExportarCSV`) é mais confiável que
+raspar a tabela renderizada (evita lidar com paginação). Reaproveitar a página do navegador entre
+buscas sucessivas se mostrou instável - navegar do zero a cada consulta funcionou de forma
+confiável, só mais lento (~3s por mês).
 
 ## Descartado
 
@@ -77,5 +96,5 @@ nenhuma página do site oficial. Conclusão: abandonado por falta de fonte, não
 esforço - só reabrir se descobrirmos uma fonte nova (ex.: pedido via e-SIC).
 
 ## Antes de implementar qualquer item acima
-Alinhar com o usuário: taxonomia de temas (lista de categorias e palavras-chave), formato de
-apresentação do "menos atuante", e se/quando vale investir no scraper do portal Fiorilli.
+Alinhar com o usuário: taxonomia de temas (lista de categorias e palavras-chave) e formato de
+apresentação do "menos atuante".

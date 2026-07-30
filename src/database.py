@@ -1,4 +1,5 @@
 import sqlite3
+import unicodedata
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import date
@@ -66,6 +67,25 @@ CREATE INDEX IF NOT EXISTS idx_proposituras_data ON proposituras(data);
 CREATE INDEX IF NOT EXISTS idx_proposituras_tipo ON proposituras(tipo);
 CREATE INDEX IF NOT EXISTS idx_proposituras_situacao ON proposituras(situacao);
 CREATE INDEX IF NOT EXISTS idx_propositura_autores_vereador ON propositura_autores(vereador_id);
+
+CREATE TABLE IF NOT EXISTS remuneracao_vereadores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vereador_id INTEGER REFERENCES vereadores(id),  -- NULL se não identificado pelo nome
+    nome_portal TEXT NOT NULL,   -- nome exatamente como está no portal de transparência
+    cargo TEXT,
+    ano INTEGER NOT NULL,
+    mes INTEGER NOT NULL,
+    proventos REAL,              -- valor bruto
+    liquido REAL,                -- valor líquido (campo "employeeSalary" do portal)
+    data_admissao TEXT,
+    data_desligamento TEXT,
+    unidade TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(nome_portal, ano, mes)
+);
+
+CREATE INDEX IF NOT EXISTS idx_remuneracao_vereador ON remuneracao_vereadores(vereador_id);
+CREATE INDEX IF NOT EXISTS idx_remuneracao_ano_mes ON remuneracao_vereadores(ano, mes);
 """
 
 
@@ -111,6 +131,19 @@ class PropositutaInfo:
     pdf_url: Optional[str]
     # Pares (nome, apelido) extraídos do campo "Autoria" - uma propositura pode ter coautoria
     autores: List[tuple] = field(default_factory=list)
+
+
+@dataclass
+class RemuneracaoInfo:
+    nome_portal: str
+    cargo: Optional[str]
+    ano: int
+    mes: int
+    proventos: Optional[float]
+    liquido: Optional[float]
+    data_admissao: Optional[str]
+    data_desligamento: Optional[str]
+    unidade: Optional[str]
 
 
 class DatabaseManager:
@@ -255,6 +288,49 @@ class DatabaseManager:
                 """INSERT OR IGNORE INTO propositura_autores (propositura_id, vereador_id)
                    VALUES (?, ?)""",
                 (propositura_id, vereador_id),
+            )
+
+    # ------------------------------------------------------------------ #
+    # Remuneração (portal de transparência)
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _normalizar_nome(nome: str) -> str:
+        """Maiúsculas sem acento, para casar nomes entre Siscam e o portal de transparência
+        mesmo com pequenas diferenças de grafia."""
+        sem_acento = unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode("ascii")
+        return " ".join(sem_acento.upper().split())
+
+    def buscar_vereador_por_nome(self, nome: str) -> Optional[int]:
+        alvo = self._normalizar_nome(nome)
+        with self.get_connection() as conn:
+            for row in conn.execute("SELECT id, nome FROM vereadores"):
+                if self._normalizar_nome(row["nome"]) == alvo:
+                    return row["id"]
+        return None
+
+    def upsert_remuneracao(self, info: RemuneracaoInfo) -> None:
+        vereador_id = self.buscar_vereador_por_nome(info.nome_portal)
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO remuneracao_vereadores
+                    (vereador_id, nome_portal, cargo, ano, mes, proventos, liquido,
+                     data_admissao, data_desligamento, unidade, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                ON CONFLICT(nome_portal, ano, mes) DO UPDATE SET
+                    vereador_id = excluded.vereador_id,
+                    cargo = excluded.cargo,
+                    proventos = excluded.proventos,
+                    liquido = excluded.liquido,
+                    data_admissao = excluded.data_admissao,
+                    data_desligamento = excluded.data_desligamento,
+                    unidade = excluded.unidade,
+                    updated_at = datetime('now')
+                """,
+                (vereador_id, info.nome_portal, info.cargo, info.ano, info.mes,
+                 info.proventos, info.liquido, info.data_admissao, info.data_desligamento,
+                 info.unidade),
             )
 
     # ------------------------------------------------------------------ #
