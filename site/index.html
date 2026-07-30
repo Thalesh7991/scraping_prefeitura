@@ -4,13 +4,12 @@
 <meta charset="utf-8">
 <script>(function(){var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t);})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Visão geral — Câmara de Botucatu em Dados</title>
+<title>Visão geral — FiscalizAI Botucatu</title>
 <meta name="description" content="O que os vereadores de Botucatu em exercício têm proposto na legislatura atual.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
 <header class="site-header" id="site-header"></header>
@@ -28,33 +27,52 @@
     <div class="card stat-tile"><p class="stat-label">Gasto com remuneração desde o início do mandato</p><p class="stat-value moeda" id="stat-remuneracao">—</p></div>
   </div>
 
-  <h3 class="section-title">O que os vereadores têm proposto</h3>
-  <div class="card chart-card">
-    <div class="chart-wrap"><canvas id="grafico-familia"></canvas></div>
+  <div class="card cta-card">
+    <p>Quer ver o que o <strong>seu</strong> vereador fez?</p>
+    <a class="btn btn-primary" href="vereador.html">Ver perfil de cada vereador</a>
   </div>
-  <details>
-    <summary>O que significa cada tipo?</summary>
+
+  <div class="sobre-secao">
+    <h3 class="section-title">Por que esse site existe</h3>
+    <p>Esse projeto nasceu de uma pergunta simples: o que os vereadores de Botucatu realmente fazem?
+      Não o discurso de campanha, não o que aparece nas redes sociais — o que está registrado,
+      publicamente, no próprio site da Câmara. A ideia é dar à população uma forma fácil de
+      acompanhar, vereador por vereador, o que cada um apresentou, aprovou e quanto custa aos
+      cofres públicos, sem precisar vasculhar um site institucional feito para arquivar documentos,
+      não para informar cidadãos.</p>
+
+    <h3 class="section-title">O que você encontra em cada página</h3>
     <ul>
-      <li><strong>Propostas de lei e normas</strong>: Projetos de Lei e afins - podem virar lei/norma se aprovados.</li>
-      <li><strong>Pedidos e solicitações</strong>: Indicações (sugestões ao Executivo) e Requerimentos (pedidos formais/fiscalização).</li>
-      <li><strong>Homenagens e manifestações</strong>: Moções - aplausos, repúdio, pesar. Não têm efeito de lei.</li>
-      <li><strong>Outros</strong>: prestação de contas e vetos.</li>
+      <li><strong>Vereadores</strong>: o perfil completo de cada vereador - todas as propostas que
+        apresentou, sua remuneração, um resumo da atuação e a proporção de propostas cerimoniais x
+        com efeito prático.</li>
+      <li><strong>Comparar</strong>: coloca todos os vereadores lado a lado, por tipo de atuação,
+        para ver quem propôs mais ou menos de cada coisa.</li>
+      <li><strong>Buscar</strong>: busca por palavra-chave entre todas as propostas já registradas,
+        com filtros por tipo, situação e vereador.</li>
     </ul>
-  </details>
 
-  <h3 class="section-title">Sobre o que é, de fato</h3>
-  <div class="card chart-card">
-    <div class="chart-wrap"><canvas id="grafico-assunto"></canvas></div>
-  </div>
+    <h3 class="section-title">Uma ferramenta crítica, não um placar de vitórias</h3>
+    <p>A maior parte do que uma câmara municipal produz não é lei - é homenagem, denominação de
+      rua, data comemorativa, moção de aplauso. Nada errado nisso, mas também não é isso que muda
+      a vida de ninguém. Por isso este site classifica cada proposta pelo que ela realmente é,
+      mesmo quando o resultado não é bonito: se a maior parte da atuação de um vereador for
+      cerimonial, o site mostra isso claramente, com os números ao lado para qualquer um
+      conferir.</p>
 
-  <h3 class="section-title">Evolução ao longo do mandato</h3>
-  <div class="card chart-card">
-    <div class="chart-wrap"><canvas id="grafico-evolucao"></canvas></div>
-  </div>
+    <h3 class="section-title">Como funciona</h3>
+    <p>Todos os dias, um programa busca automaticamente os dados públicos do site oficial da
+      Câmara (proposituras, vereadores, comissões) e do portal de transparência da Prefeitura
+      (remuneração). Toda classificação - tipo de proposta, assunto, se é cerimonial ou tem efeito
+      prático - é calculada por regras determinísticas e auditáveis, não por um algoritmo de
+      caixa-preta. Os resumos em texto corrido de cada vereador são gerados por IA a partir desses
+      mesmos números (nunca o contrário) e podem ser conferidos contra os dados ao lado.</p>
 
-  <h3 class="section-title">Situação das propostas de lei e normas</h3>
-  <div class="card chart-card">
-    <div class="chart-wrap"><canvas id="grafico-situacao"></canvas></div>
+    <h3 class="section-title">Independência</h3>
+    <p>Este é um projeto pessoal e independente. Não tem vínculo com a Câmara Municipal, com a
+      Prefeitura de Botucatu, com nenhum partido ou candidato. Os dados são públicos e vêm
+      diretamente do site oficial da Câmara - qualquer pessoa pode conferir a fonte original a
+      partir de cada proposta listada.</p>
   </div>
 </main>
 
@@ -62,7 +80,6 @@
 
 <script src="assets/data.js"></script>
 <script src="assets/layout.js"></script>
-<script src="assets/charts.js"></script>
 <script>
 montarLayout("index");
 
@@ -76,52 +93,8 @@ CamaraData.carregar().then(({ proposituras, meta }) => {
   document.getElementById("stat-total").textContent = CamaraData.formatarNumero(proposituras.length);
   document.getElementById("stat-normativos").textContent = CamaraData.formatarNumero(normativos.length);
   document.getElementById("stat-taxa").textContent = `${taxa}%`;
-
   document.getElementById("stat-vereadores").textContent = meta.total_vereadores;
-
   document.getElementById("stat-remuneracao").textContent = CamaraData.formatarMoeda(meta.estimativa_gasto_mandato_total);
-
-  // Por família
-  const porFamilia = CamaraData.agrupar(proposituras, "familia_label");
-  const labelsUnicos = CamaraData.FAMILIAS_ORDEM
-    .map((f) => proposituras.find((p) => p.familia === f)?.familia_label)
-    .filter(Boolean);
-  const valoresFamilia = labelsUnicos.map((l) => porFamilia[l] || 0);
-  const coresFamilia = CamaraData.FAMILIAS_ORDEM.filter((f) => proposituras.some((p) => p.familia === f)).map((f) => CamaraData.CORES_FAMILIA[f]);
-  graficoBarrasHorizontais("grafico-familia", labelsUnicos, valoresFamilia, coresFamilia);
-
-  // Por assunto (categoria)
-  const porCategoria = CamaraData.agrupar(proposituras, "categoria");
-  const categoriasPresentes = meta.categorias_ordem.filter((c) => porCategoria[c]);
-  const coresCategoria = categoriasPresentes.map((c) => CamaraData.corCategoria(c, meta.categorias_cerimoniais));
-  graficoBarrasHorizontais("grafico-assunto", categoriasPresentes, categoriasPresentes.map((c) => porCategoria[c]), coresCategoria);
-
-  // Evolução por ano
-  const porAnoFamilia = {};
-  proposituras.forEach((p) => {
-    if (!p.data) return;
-    const ano = p.data.slice(0, 4);
-    porAnoFamilia[ano] = porAnoFamilia[ano] || {};
-    porAnoFamilia[ano][p.familia] = (porAnoFamilia[ano][p.familia] || 0) + 1;
-  });
-  const anos = Object.keys(porAnoFamilia).sort();
-  const familiasPresentes = CamaraData.FAMILIAS_ORDEM.filter((f) => proposituras.some((p) => p.familia === f));
-  const series = familiasPresentes.map((f) => ({
-    label: proposituras.find((p) => p.familia === f).familia_label,
-    data: anos.map((a) => porAnoFamilia[a][f] || 0),
-    color: CamaraData.CORES_FAMILIA[f],
-  }));
-  graficoLinhaTempo("grafico-evolucao", anos, series);
-
-  // Situação dos normativos
-  const porStatus = CamaraData.agrupar(normativos, "status");
-  const statusPresentes = CamaraData.STATUS_ORDEM.filter((s) => porStatus[s]);
-  graficoBarrasStatus(
-    "grafico-situacao",
-    statusPresentes,
-    statusPresentes.map((s) => porStatus[s]),
-    statusPresentes.map((s) => CamaraData.CORES_STATUS[s])
-  );
 });
 </script>
 </body>

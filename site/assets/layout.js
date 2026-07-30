@@ -16,9 +16,11 @@ function montarLayout(paginaAtiva) {
   if (header) {
     header.innerHTML = `
       <div class="container">
-        <div class="brandmark" aria-hidden="true">CB</div>
+        <div class="brandmark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="20" y1="20" x2="15.5" y2="15.5"/></svg>
+        </div>
         <div class="header-text">
-          <h1>Câmara de Botucatu em Dados</h1>
+          <h1>Fiscaliz<span class="marca-ai">AI</span> <span class="marca-cidade">Botucatu</span></h1>
           <p id="header-caption">Carregando dados...</p>
         </div>
         <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Alternar modo escuro/claro" title="Alternar modo escuro/claro">

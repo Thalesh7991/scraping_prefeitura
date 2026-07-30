@@ -1,4 +1,4 @@
-# Câmara de Botucatu em Dados
+# FiscalizAI Botucatu
 
 Site público com a atuação dos vereadores da Câmara Municipal de Botucatu: propostas
 apresentadas, taxa de aprovação, comparativos e busca — construído a partir de scraping do site
