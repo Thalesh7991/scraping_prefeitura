@@ -171,6 +171,19 @@ const CamaraData = (() => {
     "Outra situação": "#7a7e87",
   };
 
+  const COR_CATEGORIA_CERIMONIAL = "#eda100";
+  const COR_CATEGORIA_SUBSTANTIVA = "#2a78d6";
+  const COR_CATEGORIA_RESIDUAL = "#7a7e87";
+  const CATEGORIA_RESIDUAL_NOME = "Outros/Não identificado";
+
+  // Cor por assunto: dourado = cerimonial/simbólico, azul = com efeito prático, cinza =
+  // não identificado - a lista do que é cerimonial vem do meta.json (calculada em Python,
+  // nunca duplicada aqui).
+  function corCategoria(categoria, categoriasCerimoniais) {
+    if (categoria === CATEGORIA_RESIDUAL_NOME) return COR_CATEGORIA_RESIDUAL;
+    return (categoriasCerimoniais || []).includes(categoria) ? COR_CATEGORIA_CERIMONIAL : COR_CATEGORIA_SUBSTANTIVA;
+  }
+
   return {
     carregar,
     formatarData,
@@ -187,6 +200,7 @@ const CamaraData = (() => {
     CORES_FAMILIA,
     STATUS_ORDEM,
     CORES_STATUS,
+    corCategoria,
     NOMES_MES,
   };
 })();

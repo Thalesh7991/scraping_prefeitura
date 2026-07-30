@@ -64,28 +64,77 @@ acima da tabela mensal). De brinde, o perfil do vereador agora mostra um selo "L
 quando aplicável (`vereador.licenciado`, já coletado há tempo mas nunca exibido antes) - sem
 isso, sumir a seção de Remuneração pra um licenciado ficava sem explicação visível.
 
+### Classificação por assunto real (honesta sobre o que é cerimonial) + resumo crítico gerado por IA
+Implementado em 2026-07-30, em resposta à pergunta "os vereadores não estão fazendo coisas
+inúteis?". Tipo formal e família não respondem isso (um "Projeto de Lei" pode ser só pra dar nome
+a uma rua) - era necessário classificar pelo **conteúdo real da ementa**.
+
+**Taxonomia final - uma lista só, não dois eixos separados** (`CATEGORIA_PATTERNS` em
+`src/config.py`, aplicada em `categoria_de_ementa()` em `src/export_json.py`). Decisão importante,
+motivada por feedback direto do usuário: uma versão inicial tinha "Natureza" (simbólico/
+substantivo) e "Tema" (assunto) como dois eixos independentes, com as categorias cerimoniais
+escondidas atrás de uma flag `Natureza=Simbólico`. Isso foi rejeitado: **as categorias cerimoniais
+precisam ser nomeadas explicitamente na mesma lista de assuntos**, senão uma "Denominação de rua"
+pode acabar parecendo "Trânsito" só por mencionar uma via. A ordem dos padrões importa muito por
+isso: os 4 padrões cerimoniais são testados **antes** de qualquer categoria de política pública.
+
+Lista final (14 categorias, as 4 primeiras são cerimoniais/simbólicas):
+Denominação de Ruas/Prédios e Títulos Honoríficos, Datas/Semanas/Campanhas Comemorativas,
+Utilidade Pública, Homenagens e Manifestações de Apreço/Pesar, Saúde, Educação, Assistência
+Social, Segurança Pública, Meio Ambiente, Trânsito e Segurança Viária, Transporte Coletivo e
+Rodovias, Infraestrutura e Obras Urbanas, Cultura/Esporte/Lazer, Administração e Institucional
+(+ residual "Outros/Não identificado").
+
+Duas fontes de sinal, nessa ordem: (1) padrão de conteúdo/regex na ementa; (2) se nada bateu,
+o **destinatário estruturado** do pedido - muitos Requerimentos/Indicações começam com "Secretário
+de X - solicita-se..." e esse "X" já denuncia o assunto (`DESTINATARIO_CATEGORIA`), sem precisar
+adivinhar por palavra-chave.
+
+**Validado contra as 7.234 ementas coletadas (todas as legislaturas)**: Infraestrutura e Obras
+Urbanas 14,6%, Outros/Não identificado 13,0%, Homenagens e Manifestações 12,9%, Saúde 11,6%,
+Educação 9,3%, Trânsito e Segurança Viária 8,9%, Segurança Pública 7,1%, Meio Ambiente 5,3%,
+Administração e Institucional 4,3%, Cultura/Esporte/Lazer 3,8%, Denominação de Ruas/Prédios 3,4%,
+Transporte Coletivo e Rodovias 2,7%, Assistência Social 2,2%, Datas Comemorativas 0,4%, Utilidade
+Pública 0,4%. **Total cerimonial/simbólico: 17,0%** de tudo que a Câmara já produziu desde 2021.
+Conferido manualmente que "Denomina a Rua X" nunca cai em Trânsito/Infraestrutura (213/267 casos
+com a palavra "denomina" caem certinho na categoria própria - o resto são menções incidentais,
+tipo "revoga lei que dispõe sobre denominação").
+
+Exibido em `index.html` (tile "Cerimonial/simbólico" + gráfico "Sobre o que é, de fato", Câmara
+inteira) e em `vereador.html` (gráfico "Por assunto" por vereador). Cor por categoria calculada em
+`corCategoria()` (`site/assets/data.js`), lendo `meta.categorias_cerimoniais` do JSON (nunca
+hardcoded em JS): dourado = cerimonial, azul = com efeito prático, cinza = não identificado.
+
+**Resumo crítico da atuação, gerado por IA** (`src/gerar_resumos.py`, usa Gemini - chave do
+usuário, reaproveitada de outro projeto dele, em `.env` local/gitignored como `GEMINI_API_KEY` +
+`GEMINI_MODEL=gemini-2.5-flash`). Confirma a decisão de arquitetura registrada antes de programar:
+**script totalmente offline, não roda no GitHub Actions**. Lê os números já calculados
+deterministicamente (categoria, tipo formal, situação dos Projetos de Lei, remuneração, contexto
+de mandato/licença) direto do SQLite, monta um prompt só com esses números (nunca a ementa crua),
+chama o Gemini uma vez por vereador, e grava em `src/resumos_atuacao.json` (**committed no git**,
+diferente de `site/data/*.json` que é gitignored/regenerado a cada deploy). Cache por hash dos
+números de entrada - rodar de novo só chama a API pra quem mudou. `export_json.py` só **lê** esse
+arquivo e junta `resumo_atuacao` ao vereador exportado; nunca chama o Gemini no dia a dia.
+
+Rodado pra todos os 13 vereadores em 2026-07-30 e revisado manualmente (por mim): todos os textos
+citam só os números fornecidos, nomeiam sem suavizar quando a maioria é cerimonial (entre 28% e
+48% "Homenagens e Manifestações" na maioria dos vereadores - achado forte), tratam os 2 licenciados
+com contexto justo (0 proposituras porque estão afastados, não porque "não trabalham"), e nenhum
+usa julgamento de caráter. Exibido em `vereador.html` como card "Resumo da atuação", com selo
+visível "Resumo gerado por IA a partir dos números ao lado" - mesma lógica de transparência de
+método já usada em "estimativa" vs. "confirmado" na remuneração. **Ainda vale o usuário conferir
+os 13 textos pessoalmente** antes de considerar isso definitivo (revisão automática por mim não
+substitui a leitura do dono do projeto).
+
+**Não implementado nessa rodada / possível refinamento futuro**: alguns padrões regex ainda erram
+por causa de plural (ex.: "licitações" não bate no padrão pensado pra "licitação" - falha
+silenciosa, reduz um pouco a categoria "Administração e Institucional", não gera classificação
+errada). Taxonomia de tema (Saúde/Educação/etc.) além do binário cerimonial/substantivo não foi
+revisitada nessa rodada especificamente para refinar por LLM - segue determinística, como decidido.
+
 ## Em aberto
 
-### 1. Classificação por Tema/Assunto (o que a Câmara está tratando de fato)
-Hoje só categorizamos por **tipo formal** (Projeto de Lei, Requerimento, Moção...) e **família**
-(Normativos, Fiscalização/Solicitações, Manifestações políticas, Outros). Isso não diz nada sobre
-**o assunto** (saúde, educação, infraestrutura, segurança...), que é o que realmente importa pro
-cidadão entender o que a Câmara prioriza.
-
-**Proposta**: classificar cada propositura por palavras-chave no campo `ementa` (mesmo padrão
-determinístico/transparente usado hoje pra família/situação, calculado em Python no
-`export_json.py`, sem depender de API/LLM). Taxonomia a validar antes de implementar: Saúde,
-Educação, Infraestrutura/Vias, Segurança, Meio Ambiente, Transporte, Assistência Social,
-Cultura/Esporte/Lazer, Administração/Finanças, Homenagens/Datas. Precisa de uma rodada de
-validação da lista de palavras-chave por tema antes de programar (ver seção "Antes de
-implementar" abaixo).
-
-Contexto: perguntei "os vereadores não estão fazendo coisas inúteis?" — os números atuais não
-sustentam essa hipótese com força (Moções = 11% do total, votos de pesar = 5%), mas isso só
-mede "quanto é cerimonial", não "sobre o que estão tratando". A classificação por tema resolve
-essa lacuna.
-
-### 2. "Mais atuante" e "menos atuante" lado a lado (ferramenta crítica, não só elogio)
+### 1. "Mais atuante" e "menos atuante" lado a lado (ferramenta crítica, não só elogio)
 Hoje o vereador com menos proposituras já aparece (implícito) no topo do gráfico de ranking, mas
 sem destaque. Pedido explícito: tornar isso simétrico e visível — a ferramenta deve ajudar a
 população a ver problemas, não só quem está indo bem.
@@ -96,7 +145,7 @@ período), ou propôs poucos projetos mas de mais peso/qualidade. Decisão pende
 número cru mesmo assim (é fato) mas com contexto visível ao lado (data de início no mandato,
 status licenciado) — a validar o formato exato com o usuário antes de programar.
 
-### 3. Gastos da Câmara — próximos passos (parte já feita, ver "Feito" acima)
+### 2. Gastos da Câmara — próximos passos (parte já feita, ver "Feito" acima)
 Investigação original em 2026-07-30 na página `/Transparencia` do site oficial, que levou ao
 portal de terceiros (Fiorilli) em `https://botucatusp.dcfiorilli.com.br:879/transparenciacamara/`
 - ver `src/scraper_transparencia.py` pro que já foi implementado (salário/remuneração).
@@ -135,5 +184,4 @@ nenhuma página do site oficial. Conclusão: abandonado por falta de fonte, não
 esforço - só reabrir se descobrirmos uma fonte nova (ex.: pedido via e-SIC).
 
 ## Antes de implementar qualquer item acima
-Alinhar com o usuário: taxonomia de temas (lista de categorias e palavras-chave) e formato de
-apresentação do "menos atuante".
+Alinhar com o usuário: formato de apresentação do "menos atuante" (item 1 acima).

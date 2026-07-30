@@ -5,6 +5,10 @@ beautifulsoup4>=4.11.0
 # Coleta do portal de transparência (Fiorilli) - carrega dados via JS, precisa de navegador
 playwright>=1.45.0
 
+# Resumo crítico da atuação (src/gerar_resumos.py) - script offline, não roda no pipeline diário
+google-genai>=1.0.0
+python-dotenv>=1.0.0
+
 # Dashboard
 streamlit>=1.38.0
 plotly>=5.10.0

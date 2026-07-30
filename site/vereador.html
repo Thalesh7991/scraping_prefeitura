@@ -37,6 +37,7 @@ montarLayout("vereador");
 
 let DADOS = null;
 let graficoAtual = null;
+let graficoAssuntoAtual = null;
 
 function paramId() {
   const p = new URLSearchParams(location.search).get("id");
@@ -57,7 +58,7 @@ function montarSelect(vereadores, idSelecionado) {
 }
 
 function renderizarPerfil(id) {
-  const { proposituras, vereadoresPorId, remuneracao } = DADOS;
+  const { proposituras, vereadoresPorId, remuneracao, meta } = DADOS;
   const vereador = vereadoresPorId[id];
   const el = document.getElementById("perfil-conteudo");
   if (!vereador) {
@@ -110,10 +111,22 @@ function renderizarPerfil(id) {
       </div>
     </div>
 
+    ${vereador.resumo_atuacao ? `
+    <h3 class="section-title">Resumo da atuação</h3>
+    <div class="card">
+      <p>${CamaraData.escapeHtml(vereador.resumo_atuacao)}</p>
+      <p class="section-caption" style="margin:.75rem 0 0">Resumo gerado por IA a partir dos números ao lado (categoria, tipo, situação e remuneração) - não é uma opinião, é uma leitura automática dos mesmos dados já mostrados nesta página.</p>
+    </div>
+    ` : ""}
+
     ${remuneracaoHtml}
 
     <h3 class="section-title">Propostas apresentadas (${minhas.length})</h3>
     <div class="card chart-card"><div class="chart-wrap"><canvas id="grafico-perfil-tipo"></canvas></div></div>
+
+    <h3 class="section-title">Por assunto</h3>
+    <p class="section-caption">Dourado = cerimonial/simbólico (homenagem, denominação, data comemorativa - sem efeito de lei). Azul = com efeito prático.</p>
+    <div class="card chart-card"><div class="chart-wrap"><canvas id="grafico-perfil-assunto"></canvas></div></div>
 
     <h3 class="section-title">Filtrar propostas</h3>
     <div class="filters-row">
@@ -133,6 +146,20 @@ function renderizarPerfil(id) {
   if (graficoAtual) graficoAtual.destroy();
   if (tipos.length) {
     graficoAtual = graficoBarrasHorizontais("grafico-perfil-tipo", tipos, tipos.map((t) => porTipo[t]), coresTipo);
+  }
+
+  // gráfico por assunto (categoria)
+  const porCategoria = CamaraData.agrupar(minhas, "categoria");
+  const categoriasPresentes = meta.categorias_ordem.filter((c) => porCategoria[c]);
+  const coresCategoria = categoriasPresentes.map((c) => CamaraData.corCategoria(c, meta.categorias_cerimoniais));
+  if (graficoAssuntoAtual) graficoAssuntoAtual.destroy();
+  if (categoriasPresentes.length) {
+    graficoAssuntoAtual = graficoBarrasHorizontais(
+      "grafico-perfil-assunto",
+      categoriasPresentes,
+      categoriasPresentes.map((c) => porCategoria[c]),
+      coresCategoria
+    );
   }
 
   // filtros
