@@ -120,11 +120,11 @@ Rodado pra todos os 13 vereadores em 2026-07-30 e revisado manualmente (por mim)
 citam só os números fornecidos, nomeiam sem suavizar quando a maioria é cerimonial (entre 28% e
 48% "Homenagens e Manifestações" na maioria dos vereadores - achado forte), tratam os 2 licenciados
 com contexto justo (0 proposituras porque estão afastados, não porque "não trabalham"), e nenhum
-usa julgamento de caráter. Exibido em `vereador.html` como card "Resumo da atuação", com selo
-visível "Resumo gerado por IA a partir dos números ao lado" - mesma lógica de transparência de
-método já usada em "estimativa" vs. "confirmado" na remuneração. **Ainda vale o usuário conferir
-os 13 textos pessoalmente** antes de considerar isso definitivo (revisão automática por mim não
-substitui a leitura do dono do projeto).
+usa julgamento de caráter. Exibido em `vereador.html` como card "Resumo da atuação" (sem legenda
+explicativa - removida a pedido do usuário, decisão dele sobre o quanto expor do método aqui,
+diferente da remuneração onde "estimativa" vs. "confirmado" continua rotulado). **Ainda vale o
+usuário conferir os 13 textos pessoalmente** antes de considerar isso definitivo (revisão
+automática por mim não substitui a leitura do dono do projeto).
 
 **Não implementado nessa rodada / possível refinamento futuro**: alguns padrões regex ainda erram
 por causa de plural (ex.: "licitações" não bate no padrão pensado pra "licitação" - falha
