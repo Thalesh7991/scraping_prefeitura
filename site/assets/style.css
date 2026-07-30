@@ -1,4 +1,4 @@
-/* Câmara de Botucatu em Dados — ferramenta independente de acompanhamento
+/* FiscalizAI Botucatu — ferramenta independente de acompanhamento
    legislativo. Usa o azul-marinho da Câmara apenas como referência sutil
    (texto/acentos), não como identidade visual copiada - o objetivo é parecer
    um produto de dados moderno, não uma extensão do site institucional. */
@@ -135,16 +135,16 @@ a:hover { color: var(--gold); }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 1.05rem;
-  font-family: var(--mono);
 }
+.site-header .brandmark svg { width: 22px; height: 22px; }
 .site-header h1 {
   font-size: 1.3rem;
   margin: 0;
   font-weight: 800;
   color: var(--ink);
 }
+.site-header h1 .marca-ai { color: var(--accent); }
+.site-header h1 .marca-cidade { font-weight: 600; color: var(--text-secondary); }
 .site-header p {
   margin: .2rem 0 0;
   color: var(--text-secondary);
@@ -251,6 +251,20 @@ h2.page-title { font-size: 1.6rem; margin: 0 0 .3rem; font-weight: 800; color: v
 
 .chart-card { padding: 1.25rem; }
 .chart-wrap { position: relative; height: 320px; }
+
+.cta-card {
+  text-align: center;
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  margin: 1.75rem 0 2.5rem;
+  padding: 1.75rem 1.5rem;
+}
+.cta-card p { margin: 0 0 1rem; font-size: 1.05rem; color: var(--ink); font-weight: 600; }
+
+.sobre-secao { max-width: 720px; }
+.sobre-secao p, .sobre-secao li { color: var(--text-secondary); }
+.sobre-secao ul { padding-left: 1.2rem; }
+.sobre-secao li { margin-bottom: .4rem; }
 
 /* ---------- Botões / controles ---------- */
 .btn {
