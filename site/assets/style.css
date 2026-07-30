@@ -1,0 +1,279 @@
+/* Câmara de Botucatu em Dados — identidade visual baseada no site oficial
+   (camarabotucatu.sp.gov.br): azul-marinho + dourado. */
+
+:root {
+  color-scheme: light;
+  --navy: #0b2055;
+  --navy-light: #2a4b94;
+  --gold: #e5a45a;
+  --gold-dark: #b97a2e;
+
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --text: #16181d;
+  --text-secondary: #4b4f58;
+  --text-muted: #7a7e87;
+  --border: #e4e4e0;
+
+  /* paleta categórica validada (acessível) - usada só para dados, não para o chrome */
+  --cat-normativos: #2a78d6;
+  --cat-fiscalizacao: #eb6834;
+  --cat-manifestacoes: #1baf7a;
+  --cat-outros: #eda100;
+
+  /* status (fixos, com significado - nunca reaproveitados como cor de série) */
+  --status-aprovado: #0ca30c;
+  --status-rejeitado: #d03b3b;
+  --status-tramitando: #d98c00;
+  --status-arquivado: #ec835a;
+  --status-outro: #7a7e87;
+
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(11, 32, 85, 0.06), 0 1px 12px rgba(11, 32, 85, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #0f1115;
+    --surface: #171a21;
+    --text: #f3f4f6;
+    --text-secondary: #c3c6cf;
+    --text-muted: #8b8f99;
+    --border: #2a2e37;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --surface: #171a21;
+  --text: #f3f4f6;
+  --text-secondary: #c3c6cf;
+  --text-muted: #8b8f99;
+  --border: #2a2e37;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 12px rgba(0, 0, 0, 0.3);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--navy-light); }
+:root[data-theme="dark"] a, @media (prefers-color-scheme: dark) { }
+a:hover { color: var(--gold-dark); }
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* ---------- Cabeçalho ---------- */
+.site-header {
+  background: linear-gradient(155deg, var(--navy) 0%, var(--navy-light) 100%);
+  color: #fff;
+  padding: 1.75rem 0 1.25rem;
+}
+.site-header .container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.site-header img.brasao {
+  height: 56px;
+  width: auto;
+  filter: drop-shadow(1px 1px 3px rgba(0,0,0,.35));
+}
+.site-header h1 {
+  font-size: 1.4rem;
+  margin: 0;
+  font-weight: 700;
+}
+.site-header p {
+  margin: .15rem 0 0;
+  color: #dbe0f0;
+  font-size: .92rem;
+  max-width: 640px;
+}
+.header-text { flex: 1; min-width: 240px; }
+
+/* ---------- Navegação ---------- */
+.site-nav {
+  background: rgba(0,0,0,.15);
+}
+.site-nav .container {
+  display: flex;
+  gap: .25rem;
+  flex-wrap: wrap;
+}
+.site-nav a {
+  color: #e7eaf6;
+  text-decoration: none;
+  padding: .7rem .9rem;
+  font-size: .92rem;
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+  transition: border-color .15s ease, color .15s ease;
+}
+.site-nav a:hover { color: #fff; }
+.site-nav a.active {
+  color: #fff;
+  border-bottom-color: var(--gold);
+}
+
+/* ---------- Layout geral ---------- */
+main { padding: 1.75rem 0 3rem; }
+h2.page-title { font-size: 1.5rem; margin: 0 0 .25rem; }
+.page-subtitle { color: var(--text-secondary); margin: 0 0 1.5rem; max-width: 720px; }
+.section-title { font-size: 1.1rem; margin: 2rem 0 .25rem; }
+.section-caption { color: var(--text-muted); font-size: .88rem; margin: 0 0 1rem; }
+
+/* ---------- Cartões / grid ---------- */
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.25rem;
+}
+.stat-tile .stat-label {
+  font-size: .82rem;
+  color: var(--text-muted);
+  margin: 0 0 .35rem;
+}
+.stat-tile .stat-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+:root[data-theme="dark"] .stat-tile .stat-value,
+@media (prefers-color-scheme: dark) { .stat-tile .stat-value { color: #7fa6ef; } }
+
+.chart-card { padding: 1.25rem; }
+.chart-wrap { position: relative; height: 320px; }
+
+/* ---------- Botões / controles ---------- */
+.btn {
+  display: inline-block;
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: .5rem 1rem;
+  font-size: .85rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn:hover { background: var(--navy-light); color: #fff; }
+.btn-gold { background: var(--gold); color: #35240a; }
+.btn-gold:hover { background: var(--gold-dark); color: #fff; }
+
+select, input[type="text"], input[type="search"] {
+  font: inherit;
+  padding: .55rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+label.field-label {
+  display: block;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 .3rem;
+}
+.field { margin-bottom: 1rem; }
+.filters-row {
+  display: grid;
+  gap: .9rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-bottom: 1.25rem;
+}
+
+/* pills de família / tipo de atuação (radio-like) */
+.pill-group { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.pill {
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: .45rem .9rem;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pill.active {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: #fff;
+}
+
+/* ---------- Tabela ---------- */
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+table { width: 100%; border-collapse: collapse; background: var(--surface); font-size: .9rem; }
+th, td { text-align: left; padding: .6rem .8rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td.wrap, th.wrap { white-space: normal; }
+th { color: var(--text-muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; }
+tbody tr:hover { background: rgba(11,32,85,.04); }
+:root[data-theme="dark"] tbody tr:hover { background: rgba(255,255,255,.04); }
+
+/* status pill dentro de tabela */
+.status-pill {
+  display: inline-block;
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* ---------- Perfil do vereador ---------- */
+.perfil-header { display: flex; gap: 1.25rem; flex-wrap: wrap; align-items: flex-start; }
+.perfil-header img.foto {
+  width: 140px; height: 140px; object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.perfil-info { flex: 1; min-width: 240px; }
+.perfil-info h2 { margin: 0 0 .25rem; }
+details { margin-top: .6rem; }
+details summary { cursor: pointer; font-weight: 600; color: var(--navy-light); }
+:root[data-theme="dark"] details summary { color: #9db6ec; }
+
+/* ---------- Rodapé ---------- */
+.site-footer {
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: .82rem;
+  padding: 1.5rem 0 2.5rem;
+}
+
+/* ---------- Utilidades ---------- */
+.empty-state { color: var(--text-muted); font-style: italic; padding: 1rem 0; }
+.skeleton { color: var(--text-muted); }
+.legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .82rem; color: var(--text-secondary); margin-top: .5rem; }
+.legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: .35rem; vertical-align: middle; }
+
+@media (max-width: 640px) {
+  .site-header h1 { font-size: 1.15rem; }
+  .stat-tile .stat-value { font-size: 1.5rem; }
+}

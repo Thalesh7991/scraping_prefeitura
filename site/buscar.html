@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscar propostas — Câmara de Botucatu em Dados</title>
+<meta name="description" content="Busque propostas dos vereadores de Botucatu por assunto, tipo, situação ou vereador.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="site-header" id="site-header"></header>
+<nav class="site-nav" id="site-nav"></nav>
+
+<main class="container">
+  <h2 class="page-title">Buscar propostas</h2>
+  <p class="page-subtitle">Procure por um assunto ou combine filtros.</p>
+
+  <div class="field">
+    <label class="field-label" for="f-texto">Buscar por assunto</label>
+    <input type="search" id="f-texto" placeholder="Ex.: iluminação, buraco na rua, saúde, transporte...">
+  </div>
+
+  <div class="filters-row">
+    <div class="field"><label class="field-label" for="f-tipo">Tipo de proposta</label><select id="f-tipo"><option value="">Todos os tipos</option></select></div>
+    <div class="field"><label class="field-label" for="f-situacao">Situação</label><select id="f-situacao"><option value="">Todas as situações</option></select></div>
+    <div class="field"><label class="field-label" for="f-vereador">Vereador</label><select id="f-vereador"><option value="">Todos os vereadores</option></select></div>
+  </div>
+
+  <p id="contador-resultados" class="section-caption"></p>
+  <div id="tabela-busca"></div>
+</main>
+
+<footer class="site-footer" id="site-footer"></footer>
+
+<script src="assets/data.js"></script>
+<script src="assets/layout.js"></script>
+<script>
+montarLayout("buscar");
+
+CamaraData.carregar().then(({ proposituras, vereadores, meta }) => {
+  atualizarCabecalho(meta);
+
+  const selTipo = document.getElementById("f-tipo");
+  const selSituacao = document.getElementById("f-situacao");
+  const selVereador = document.getElementById("f-vereador");
+  const inputTexto = document.getElementById("f-texto");
+
+  [...new Set(proposituras.map((p) => p.tipo))].sort().forEach((t) => {
+    selTipo.innerHTML += `<option value="${CamaraData.escapeHtml(t)}">${CamaraData.escapeHtml(t)}</option>`;
+  });
+  [...new Set(proposituras.map((p) => p.situacao).filter(Boolean))].sort().forEach((s) => {
+    selSituacao.innerHTML += `<option value="${CamaraData.escapeHtml(s)}">${CamaraData.escapeHtml(s)}</option>`;
+  });
+  vereadores
+    .slice()
+    .sort((a, b) => CamaraData.nomeExibicao(a).localeCompare(CamaraData.nomeExibicao(b)))
+    .forEach((v) => {
+    selVereador.innerHTML += `<option value="${v.id}">${CamaraData.escapeHtml(CamaraData.nomeExibicao(v))}</option>`;
+  });
+
+  function aplicarFiltros() {
+    let resultado = proposituras;
+    const texto = inputTexto.value.trim().toLowerCase();
+    if (texto) resultado = resultado.filter((p) => (p.ementa || "").toLowerCase().includes(texto));
+    if (selTipo.value) resultado = resultado.filter((p) => p.tipo === selTipo.value);
+    if (selSituacao.value) resultado = resultado.filter((p) => p.situacao === selSituacao.value);
+    if (selVereador.value) {
+      const idVereador = Number(selVereador.value);
+      resultado = resultado.filter((p) => (p.autores || []).includes(idVereador));
+    }
+    document.getElementById("contador-resultados").textContent = `${resultado.length} resultado(s)`;
+    CamaraData.tabelaProposituras("tabela-busca", resultado);
+  }
+
+  [inputTexto, selTipo, selSituacao, selVereador].forEach((el) => el.addEventListener("input", aplicarFiltros));
+  aplicarFiltros();
+});
+</script>
+</body>
+</html>

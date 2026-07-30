@@ -1,0 +1,53 @@
+name: Publicar site
+
+on:
+  push:
+    branches: [web-publico]  # trocar para main após o merge desta branch
+  schedule:
+    - cron: "0 9 * * *"  # 09:00 UTC (06:00 em Botucatu) todos os dias
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependências
+        run: pip install requests beautifulsoup4
+
+      - name: Rodar scraper (gera o SQLite local, não versionado)
+        run: python -m src.main --mode full
+
+      - name: Exportar legislatura atual para JSON (site/data/*.json)
+        run: python -m src.export_json
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Empacotar o site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Publicar no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
