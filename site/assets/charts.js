@@ -9,6 +9,19 @@ Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', sans-serif";
 Chart.defaults.color = "#7a7e87";
 Chart.defaults.borderColor = "#e4e4e0";
 
+// Chart.js aceita um array de strings por rótulo (uma linha por item) - em telas
+// estreitas, um rótulo longo numa linha só é cortado (o texto fica alinhado à
+// direita do eixo e o excesso "vaza" para fora da área do gráfico). Quebrar em
+// duas linhas evita isso sem depender da largura real da tela.
+function quebrarRotulo(texto, maxCaracteres = 18) {
+  if (!texto || texto.length <= maxCaracteres) return texto;
+  const meio = Math.floor(texto.length / 2);
+  let corte = texto.lastIndexOf(" ", meio);
+  if (corte === -1) corte = texto.indexOf(" ", meio);
+  if (corte === -1) return texto;
+  return [texto.slice(0, corte), texto.slice(corte + 1)];
+}
+
 function graficoBarrasHorizontais(canvasId, labels, valores, cores) {
   const ctx = document.getElementById(canvasId);
   const wrap = ctx.parentElement;
@@ -16,7 +29,7 @@ function graficoBarrasHorizontais(canvasId, labels, valores, cores) {
   return new Chart(ctx, {
     type: "bar",
     data: {
-      labels,
+      labels: labels.map((l) => quebrarRotulo(l)),
       datasets: [{ data: valores, backgroundColor: cores, borderRadius: 4, maxBarThickness: 32 }],
     },
     options: {

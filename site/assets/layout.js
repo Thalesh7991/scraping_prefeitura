@@ -17,11 +17,9 @@ function montarLayout(paginaAtiva) {
   if (header) {
     header.innerHTML = `
       <div class="container">
-        <img class="brasao" alt="Brasão de Botucatu"
-             src="https://www.camarabotucatu.sp.gov.br/images/brasao-cidade.png"
-             onerror="this.style.display='none'">
+        <div class="brandmark" aria-hidden="true">CB</div>
         <div class="header-text">
-          <h1>Câmara de Vereadores de Botucatu em Dados</h1>
+          <h1>Câmara de Botucatu em Dados</h1>
           <p id="header-caption">Carregando dados...</p>
         </div>
       </div>`;
@@ -38,9 +36,16 @@ function montarLayout(paginaAtiva) {
 
   if (footer) {
     footer.innerHTML = `<div class="container">
-      Dados coletados automaticamente do site oficial da Câmara Municipal de Botucatu
-      (camarabotucatu.sp.gov.br). Projeto independente, sem vínculo oficial com a Câmara
-      ou a Prefeitura de Botucatu.
+      <p style="margin:0">
+        Projeto independente de acompanhamento legislativo. Sem vínculo oficial com a
+        Câmara ou a Prefeitura de Botucatu.
+      </p>
+      <div class="fonte-oficial">
+        <img alt="" aria-hidden="true"
+             src="https://www.camarabotucatu.sp.gov.br/images/brasao-cidade.png"
+             onerror="this.style.display='none'">
+        <span>Dados coletados automaticamente do site oficial da Câmara Municipal de Botucatu (camarabotucatu.sp.gov.br).</span>
+      </div>
     </div>`;
   }
 }
