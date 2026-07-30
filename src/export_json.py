@@ -6,13 +6,23 @@ nunca precise reimplementar essas regras - ele só lê e exibe.
 """
 
 import json
+import re
 import sqlite3
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .config import FAMILIA_POR_TIPO, config
+from .config import (
+    CATEGORIA_PATTERNS,
+    CATEGORIA_RESIDUAL,
+    CATEGORIAS_CERIMONIAIS,
+    DESTINATARIO_CATEGORIA,
+    FAMILIA_POR_TIPO,
+    config,
+)
 
 OUTPUT_DIR = Path("site/data")
+RESUMOS_PATH = Path("src/resumos_atuacao.json")
 
 FAMILIA_LABEL = {
     "Normativos": "Propostas de lei e normas",
@@ -20,6 +30,51 @@ FAMILIA_LABEL = {
     "Manifestações políticas": "Homenagens e manifestações",
     "Outros": "Outros",
 }
+
+CATEGORIAS_ORDEM = [nome for nome, _ in CATEGORIA_PATTERNS] + [CATEGORIA_RESIDUAL]
+
+_CATEGORIA_COMPILADAS = [(nome, re.compile(padrao, re.IGNORECASE)) for nome, padrao in CATEGORIA_PATTERNS]
+_DESTINATARIO_PREFIXO_RE = re.compile(r"^([^-]{1,60})-\s*(indica-?se|solicita-?se|requer-?se)", re.IGNORECASE)
+
+
+def _normalizar_texto(texto):
+    sem_acento = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
+    return sem_acento.lower()
+
+
+def _formatar_moeda(valor):
+    texto = f"{valor:,.2f}"
+    return "R$ " + texto.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def _frase_custo(estim):
+    """Fecho fixo do resumo de IA - construído aqui (não pelo LLM) pra sempre usar o valor
+    mais recente da estimativa, já que o texto gerado por IA é cacheado e não é regenerado
+    todo dia junto com o resto dos dados de remuneração."""
+    if not estim:
+        return (
+            "Não há dados suficientes para estimar o quanto este vereador já custou aos "
+            "cofres públicos (sem histórico de remuneração anterior à licença)."
+        )
+    return f"Até o momento, o vereador custou aos cofres públicos {_formatar_moeda(estim['estimativa_total'])} em remuneração (estimativa)."
+
+
+def categoria_de_ementa(ementa):
+    """Assunto real da propositura (eixo independente de tipo/família) - ver
+    CATEGORIA_PATTERNS em config.py pro porquê da ordem e das regras."""
+    if not ementa:
+        return CATEGORIA_RESIDUAL
+    texto_normalizado = _normalizar_texto(ementa)
+    for nome, padrao in _CATEGORIA_COMPILADAS:
+        if padrao.search(texto_normalizado):
+            return nome
+    m = _DESTINATARIO_PREFIXO_RE.match(ementa.strip())
+    if m:
+        destinatario = _normalizar_texto(m.group(1).strip())
+        for chave, categoria in DESTINATARIO_CATEGORIA.items():
+            if chave in destinatario:
+                return categoria
+    return CATEGORIA_RESIDUAL
 
 
 def status_de_situacao(situacao):
@@ -104,6 +159,8 @@ def exportar():
 
     estimativas, competencia_estimativa = _estimativas_por_vereador(remuneracao_rows, legislatura_atual_inicio)
 
+    resumos = json.loads(RESUMOS_PATH.read_text(encoding="utf-8")) if RESUMOS_PATH.exists() else {}
+
     autores_por_propositura = {}
     for row in autores_rows:
         if row["vereador_id"] in vereador_ids:
@@ -119,22 +176,27 @@ def exportar():
             {"nome": r["nome"], "cargo": r["cargo"], "data_inicio": r["data_inicio"], "data_fim": r["data_fim"]}
             for r in comissoes_rows if r["vereador_id"] == v["id"]
         ]
+        estim = estimativas.get(v["id"])
+        resumo_base = resumos.get(v["nome"], {}).get("resumo")
         vereadores_json.append({
             "id": v["id"], "nome": v["nome"], "apelido": v["apelido"], "partido": v["partido"],
             "email": v["email"], "foto_url": v["foto_url"], "licenciado": bool(v["licenciado"]),
             "bio": v["bio"], "legislaturas": legs, "comissoes": coms,
-            "estimativa_remuneracao": estimativas.get(v["id"]),
+            "estimativa_remuneracao": estim,
+            "resumo_atuacao": f"{resumo_base} {_frase_custo(estim)}" if resumo_base else None,
         })
 
     proposituras_json = []
     for p in proposituras_rows:
         familia = FAMILIA_POR_TIPO.get(p["tipo"], "Outros")
+        categoria = categoria_de_ementa(p["ementa"])
         proposituras_json.append({
             "id": p["id"], "tipo": p["tipo"], "subtipo": p["subtipo"], "numero": p["numero"],
             "ano": p["ano"], "data": p["data"], "regime": p["regime"], "quorum": p["quorum"],
             "situacao": p["situacao"], "ementa": p["ementa"], "pdf_url": p["pdf_url"],
             "familia": familia, "familia_label": FAMILIA_LABEL.get(familia, familia),
             "status": status_de_situacao(p["situacao"]),
+            "categoria": categoria, "categoria_cerimonial": categoria in CATEGORIAS_CERIMONIAIS,
             "autores": autores_por_propositura.get(p["id"], []),
         })
 
@@ -155,6 +217,8 @@ def exportar():
         "total_proposituras": len(proposituras_json),
         "familias_ordem": list(FAMILIA_LABEL.keys()),
         "familia_label": FAMILIA_LABEL,
+        "categorias_ordem": CATEGORIAS_ORDEM,
+        "categorias_cerimoniais": list(CATEGORIAS_CERIMONIAIS),
         "estimativa_gasto_mandato_total": round(sum(e["estimativa_total"] for e in estimativas.values()), 2) if estimativas else None,
         "estimativa_gasto_mandato_competencia": competencia_estimativa,
     }

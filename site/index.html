@@ -43,6 +43,12 @@
     </ul>
   </details>
 
+  <h3 class="section-title">Sobre o que é, de fato</h3>
+  <p class="section-caption">Tipo formal (acima) não conta a história toda - um "Projeto de Lei" pode ser só para dar nome a uma rua. Aqui, cada propositura é classificada pelo assunto real do texto. Dourado = cerimonial/simbólico (sem efeito de lei). Azul = com efeito prático.</p>
+  <div class="card chart-card">
+    <div class="chart-wrap"><canvas id="grafico-assunto"></canvas></div>
+  </div>
+
   <h3 class="section-title">Evolução ao longo do mandato</h3>
   <div class="card chart-card">
     <div class="chart-wrap"><canvas id="grafico-evolucao"></canvas></div>
@@ -73,6 +79,7 @@ CamaraData.carregar().then(({ proposituras, meta, remuneracao }) => {
   document.getElementById("stat-total").textContent = CamaraData.formatarNumero(proposituras.length);
   document.getElementById("stat-normativos").textContent = CamaraData.formatarNumero(normativos.length);
   document.getElementById("stat-taxa").textContent = `${taxa}%`;
+
   document.getElementById("stat-vereadores").textContent = meta.total_vereadores;
 
   document.getElementById("stat-remuneracao").textContent = CamaraData.formatarMoeda(meta.estimativa_gasto_mandato_total);
@@ -90,6 +97,12 @@ CamaraData.carregar().then(({ proposituras, meta, remuneracao }) => {
   const valoresFamilia = labelsUnicos.map((l) => porFamilia[l] || 0);
   const coresFamilia = CamaraData.FAMILIAS_ORDEM.filter((f) => proposituras.some((p) => p.familia === f)).map((f) => CamaraData.CORES_FAMILIA[f]);
   graficoBarrasHorizontais("grafico-familia", labelsUnicos, valoresFamilia, coresFamilia);
+
+  // Por assunto (categoria)
+  const porCategoria = CamaraData.agrupar(proposituras, "categoria");
+  const categoriasPresentes = meta.categorias_ordem.filter((c) => porCategoria[c]);
+  const coresCategoria = categoriasPresentes.map((c) => CamaraData.corCategoria(c, meta.categorias_cerimoniais));
+  graficoBarrasHorizontais("grafico-assunto", categoriasPresentes, categoriasPresentes.map((c) => porCategoria[c]), coresCategoria);
 
   // Evolução por ano
   const porAnoFamilia = {};
