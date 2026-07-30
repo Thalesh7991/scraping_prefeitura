@@ -24,7 +24,6 @@ site/                          # Site público estático (HTML/CSS/JS puro, iden
 ├── index.html                # Visão geral
 ├── vereador.html               # Perfil do vereador
 ├── comparar.html                # Comparar vereadores por tipo de atuação
-├── tipos.html                    # Explorar por tipo de proposta
 ├── buscar.html                    # Busca textual + filtros
 ├── assets/{style.css,data.js,layout.js,charts.js}
 └── data/*.json                # Gerado por export_json.py - não versionado (ver .gitignore)

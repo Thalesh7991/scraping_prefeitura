@@ -21,19 +21,6 @@ const CamaraData = (() => {
     return cachePromise;
   }
 
-  function periodoRemuneracao(remuneracao) {
-    if (!remuneracao.length) return null;
-    const chave = (r) => r.ano * 100 + r.mes;
-    const ordenado = remuneracao.slice().sort((a, b) => chave(a) - chave(b));
-    const primeiro = ordenado[0];
-    const ultimo = ordenado[ordenado.length - 1];
-    const nomeMes = (m) => ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][m - 1];
-    if (primeiro.ano === ultimo.ano && primeiro.mes === ultimo.mes) {
-      return `${nomeMes(primeiro.mes)}/${primeiro.ano}`;
-    }
-    return `${nomeMes(primeiro.mes)}/${primeiro.ano} a ${nomeMes(ultimo.mes)}/${ultimo.ano}`;
-  }
-
   function formatarData(iso) {
     if (!iso) return "";
     const [ano, mes, dia] = iso.split("-");
@@ -189,7 +176,6 @@ const CamaraData = (() => {
     formatarData,
     formatarNumero,
     formatarMoeda,
-    periodoRemuneracao,
     agrupar,
     autoresDe,
     escapeHtml,

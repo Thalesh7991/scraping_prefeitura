@@ -2,12 +2,13 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<script>(function(){var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t);})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Perfil do vereador — Câmara de Botucatu em Dados</title>
 <meta name="description" content="Perfil e propostas apresentadas por cada vereador de Botucatu na legislatura atual.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
@@ -93,8 +94,10 @@ function renderizarPerfil(id) {
   const estim = vereador.estimativa_remuneracao;
   const remuneracaoHtml = ultimaRemuneracao
     ? `<h3 class="section-title">Remuneração</h3>
-       <p><strong>Valor mensal atual:</strong> ${CamaraData.formatarMoeda(ultimaRemuneracao.proventos)}</p>
-       ${estim ? `<p><strong>Recebido desde o início do mandato (estimativa):</strong> ${CamaraData.formatarMoeda(estim.estimativa_total)}</p>` : ""}`
+       <div class="card">
+         <p><strong>Valor mensal atual:</strong> ${CamaraData.formatarMoeda(ultimaRemuneracao.proventos)}</p>
+         ${estim ? `<p style="margin-bottom:0"><strong>Recebido desde o início do mandato (estimativa):</strong> ${CamaraData.formatarMoeda(estim.estimativa_total)}</p>` : ""}
+       </div>`
     : "";
 
   el.innerHTML = `
@@ -124,7 +127,6 @@ function renderizarPerfil(id) {
     <div class="card chart-card"><div class="chart-wrap"><canvas id="grafico-perfil-tipo"></canvas></div></div>
 
     <h3 class="section-title">Por assunto</h3>
-    <p class="section-caption">Dourado = cerimonial/simbólico (homenagem, denominação, data comemorativa - sem efeito de lei). Azul = com efeito prático.</p>
     <div class="card chart-card"><div class="chart-wrap"><canvas id="grafico-perfil-assunto"></canvas></div></div>
 
     <h3 class="section-title">Filtrar propostas</h3>

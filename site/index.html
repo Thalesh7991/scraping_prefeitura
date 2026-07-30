@@ -2,12 +2,13 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<script>(function(){var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t);})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Visão geral — Câmara de Botucatu em Dados</title>
 <meta name="description" content="O que os vereadores de Botucatu em exercício têm proposto na legislatura atual.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
@@ -26,10 +27,8 @@
     <div class="card stat-tile"><p class="stat-label">Vereadores em exercício</p><p class="stat-value" id="stat-vereadores">—</p></div>
     <div class="card stat-tile"><p class="stat-label">Gasto com remuneração desde o início do mandato</p><p class="stat-value moeda" id="stat-remuneracao">—</p></div>
   </div>
-  <p class="section-caption" id="legenda-remuneracao"></p>
 
   <h3 class="section-title">O que os vereadores têm proposto</h3>
-  <p class="section-caption">Nem toda proposta é uma lei - veja abaixo os diferentes tipos de atuação.</p>
   <div class="card chart-card">
     <div class="chart-wrap"><canvas id="grafico-familia"></canvas></div>
   </div>
@@ -44,7 +43,6 @@
   </details>
 
   <h3 class="section-title">Sobre o que é, de fato</h3>
-  <p class="section-caption">Tipo formal (acima) não conta a história toda - um "Projeto de Lei" pode ser só para dar nome a uma rua. Aqui, cada propositura é classificada pelo assunto real do texto. Dourado = cerimonial/simbólico (sem efeito de lei). Azul = com efeito prático.</p>
   <div class="card chart-card">
     <div class="chart-wrap"><canvas id="grafico-assunto"></canvas></div>
   </div>
@@ -55,7 +53,6 @@
   </div>
 
   <h3 class="section-title">Situação das propostas de lei e normas</h3>
-  <p class="section-caption">Só faz sentido falar em "aprovado/rejeitado" para propostas de lei e normas - homenagens e pedidos não passam pelo mesmo tipo de votação.</p>
   <div class="card chart-card">
     <div class="chart-wrap"><canvas id="grafico-situacao"></canvas></div>
   </div>
@@ -69,7 +66,7 @@
 <script>
 montarLayout("index");
 
-CamaraData.carregar().then(({ proposituras, meta, remuneracao }) => {
+CamaraData.carregar().then(({ proposituras, meta }) => {
   atualizarCabecalho(meta);
 
   const normativos = proposituras.filter((p) => p.familia === "Normativos");
@@ -83,11 +80,6 @@ CamaraData.carregar().then(({ proposituras, meta, remuneracao }) => {
   document.getElementById("stat-vereadores").textContent = meta.total_vereadores;
 
   document.getElementById("stat-remuneracao").textContent = CamaraData.formatarMoeda(meta.estimativa_gasto_mandato_total);
-  const totalConfirmado = remuneracao.reduce((soma, r) => soma + (r.proventos || 0), 0);
-  const periodo = CamaraData.periodoRemuneracao(remuneracao);
-  document.getElementById("legenda-remuneracao").textContent = meta.estimativa_gasto_mandato_total
-    ? `Estimativa do valor bruto pago a vereadores desde o início do mandato (${meta.legislatura_atual_inicio_display}) até ${meta.estimativa_gasto_mandato_competencia}, mês a mês, pelo valor mais recente conhecido de cada um - já considera corretamente quando um suplente assumiu no lugar de um titular licenciado. Não considera possíveis reajustes salariais ao longo do caminho. ${CamaraData.formatarMoeda(totalConfirmado)} desse total já foram efetivamente confirmados nos meses com dados coletados (${periodo}); o restante é projeção.`
-    : "";
 
   // Por família
   const porFamilia = CamaraData.agrupar(proposituras, "familia_label");
