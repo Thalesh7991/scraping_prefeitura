@@ -92,6 +92,9 @@ JSON e publicar um site estático via GitHub Pages, em vez de commitar o `.db`).
 
 ## Notebooks antigos
 
-`src/Ciclo1.ipynb` a `Ciclo5.ipynb` e `exemplo_uso.ipynb` são o histórico de aprendizado que deu
-origem a este projeto (scraping da versão antiga do site, hoje fora do ar). Não fazem mais parte
-do pipeline ativo, mas ficam no repositório como registro da evolução do projeto.
+`notebooks/Ciclo1.ipynb` a `Ciclo5.ipynb` e `exemplo_uso.ipynb` são o histórico de aprendizado que
+deu origem a este projeto (scraping da versão antiga do site, hoje fora do ar). Não fazem mais
+parte do pipeline ativo, mas ficam no repositório como registro da evolução do projeto.
+
+`archive/img/` guarda as fotos baixadas pelo scraper antigo (site anterior) - mantidas por
+histórico; o scraper atual não baixa mais fotos, usa o link direto (`foto_url`) do site oficial.
