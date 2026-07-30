@@ -39,6 +39,46 @@ def _escrever(nome, conteudo):
     (OUTPUT_DIR / nome).write_text(json.dumps(conteudo, ensure_ascii=False), encoding="utf-8")
 
 
+def _meses_entre(inicio_iso, ano_fim, mes_fim):
+    """Quantidade de meses entre `inicio_iso` (YYYY-MM-DD) e ano/mes, incluindo ambas as pontas."""
+    ano_ini, mes_ini = int(inicio_iso[:4]), int(inicio_iso[5:7])
+    return (ano_fim - ano_ini) * 12 + (mes_fim - mes_ini) + 1
+
+
+def _estimativas_por_vereador(remuneracao_rows, legislatura_atual_inicio):
+    """Estima o gasto acumulado desde o início do mandato (ou desde que a pessoa passou a
+    receber, se for suplente que assumiu depois), a partir do valor bruto mais recente
+    conhecido de cada vereador. Não considera possíveis reajustes salariais no meio do
+    caminho - por isso é sempre rotulado como estimativa, nunca como gasto confirmado.
+    Quem nunca aparece na folha (ex.: titular licenciado) fica de fora, corretamente.
+    """
+    if not remuneracao_rows:
+        return {}, None
+
+    ano_fim = max(r["ano"] for r in remuneracao_rows)
+    mes_fim = max(r["mes"] for r in remuneracao_rows if r["ano"] == ano_fim)
+
+    por_vereador = {}
+    for r in remuneracao_rows:
+        por_vereador.setdefault(r["vereador_id"], []).append(r)
+
+    estimativas = {}
+    for vid, linhas in por_vereador.items():
+        linhas.sort(key=lambda r: (r["ano"], r["mes"]))
+        ultima = linhas[-1]
+        if not ultima["proventos"]:
+            continue
+        inicio = max(ultima["data_admissao"] or legislatura_atual_inicio, legislatura_atual_inicio)
+        meses = _meses_entre(inicio, ano_fim, mes_fim)
+        estimativas[vid] = {
+            "meses_estimados": meses,
+            "ultimo_proventos": ultima["proventos"],
+            "ultima_competencia": f"{mes_fim:02d}/{ano_fim}",
+            "estimativa_total": round(meses * ultima["proventos"], 2),
+        }
+    return estimativas, f"{mes_fim:02d}/{ano_fim}"
+
+
 def exportar():
     conn = sqlite3.connect(config.db_path)
     conn.row_factory = sqlite3.Row
@@ -62,6 +102,8 @@ def exportar():
     ).fetchall()
     conn.close()
 
+    estimativas, competencia_estimativa = _estimativas_por_vereador(remuneracao_rows, legislatura_atual_inicio)
+
     autores_por_propositura = {}
     for row in autores_rows:
         if row["vereador_id"] in vereador_ids:
@@ -81,6 +123,7 @@ def exportar():
             "id": v["id"], "nome": v["nome"], "apelido": v["apelido"], "partido": v["partido"],
             "email": v["email"], "foto_url": v["foto_url"], "licenciado": bool(v["licenciado"]),
             "bio": v["bio"], "legislaturas": legs, "comissoes": coms,
+            "estimativa_remuneracao": estimativas.get(v["id"]),
         })
 
     proposituras_json = []
@@ -112,6 +155,8 @@ def exportar():
         "total_proposituras": len(proposituras_json),
         "familias_ordem": list(FAMILIA_LABEL.keys()),
         "familia_label": FAMILIA_LABEL,
+        "estimativa_gasto_mandato_total": round(sum(e["estimativa_total"] for e in estimativas.values()), 2) if estimativas else None,
+        "estimativa_gasto_mandato_competencia": competencia_estimativa,
     }
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

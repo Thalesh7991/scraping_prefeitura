@@ -12,18 +12,57 @@ seção **Servidores → Servidores Ativos** do portal tem nome, cargo e valor l
 correspondência). Sabe distinguir titular licenciado de suplente que assumiu o cargo (o suplente
 aparece com cargo "VEREADOR SUPLENTE" recebendo o salário, o titular licenciado não aparece).
 
-**Limitação conhecida**: o seletor global "Escolha o Exercício" (trocar de ano) trava o portal
-num estado de "Processando..." que não retorna em tempo hábil (bug do próprio portal, não do
-nosso scraper) - por isso só coletamos o ano corrente de forma confiável por enquanto; anos
-anteriores (2025, ou histórico 2021-2024) ficam pendentes até resolvermos essa troca de ano ou
-encontrarmos outro caminho (ex.: parâmetro de URL direto, se existir).
+**Limitação conhecida - investigada a fundo em 2026-07-30, é um bug real do portal**: trocar
+"Escolha o Exercício" (ano) e em seguida pesquisar por mês nunca completa (fica "Processando..."
+ou, quando o indicador some, a busca volta pro formulário em branco, sem dado nenhum). Tentei
+7 abordagens diferentes pra contornar isso antes de concluir que é bug do lado do portal, não
+algo resolvível do nosso lado:
+1. Esperar mais tempo (até 54s) - nunca completa.
+2. Ignorar o indicador visual de "Processando" (hipótese: só o indicador travava, o dado por trás
+   já tinha mudado) - confirmado que o valor do combo de *ano* realmente muda rápido, mas o passo
+   seguinte (pesquisar por mês) não - o dado real não aparece, não é só o indicador.
+3. Forçar o clique no botão de exportar mesmo "escondido" (`force=True`) - falha: o elemento
+   realmente não está renderizado (não é só CSS escondendo), Playwright recusa o clique.
+4. Reautenticar com navegação do zero a cada mês (mesma técnica que resolveu o problema pro ano
+   corrente) - não resolve quando combinado com troca de ano.
+5. Esperar bem mais (até 54s) checando a contagem real de linhas da tabela (não só o botão) -
+   fica em 0 linhas indefinidamente.
+6. Inspecionar o texto final da página - o formulário volta pro estado inicial (mês em branco),
+   sugerindo que o servidor erra e a página se reseta, em vez de só estar lenta.
+7. Contexto de navegador totalmente novo (sem cookie/sessão compartilhada) pra essa tentativa -
+   mesmo resultado.
+
+**Conclusão**: só coletamos o ano corrente de forma confiável. Anos anteriores (2025, ou
+histórico 2021-2024) ficam bloqueados até acharmos um caminho totalmente diferente (ex.: um
+parâmetro de URL que pule a interação da UI, se existir - não encontrado ainda) ou até o próprio
+portal corrigir esse bug. Não vale reabrir essa investigação sem uma ideia nova e concreta.
 
 Diárias e Passagens e Verbas Indenizatórias foram descartadas nessa investigação (ver abaixo) -
 não fazem parte do que foi implementado.
 
-`src/export_json.py` já gera `site/data/remuneracao.json` com esses dados. **Ainda falta**: uma
-página no site (`site/`) pra exibir isso - não construída nesta rodada, só o scraper + banco +
-JSON estão prontos.
+`src/export_json.py` já gera `site/data/remuneracao.json` com esses dados, e o site já exibe:
+tile agregado + tabela mensal por vereador em `vereador.html`.
+
+### Estimativa de gasto desde o início do mandato
+Implementado em 2026-07-30, em `src/export_json.py` (`_estimativas_por_vereador`). Resolve a
+pergunta "dá pra multiplicar salário × meses de mandato?" com precisão, usando dado que já
+coletamos (sem scraping novo): o campo `data_admissao` do portal de transparência já grava,
+por pessoa, quando ela passou a receber - `2025-01-01` pros titulares em exercício desde o
+início, `2025-01-08` pros dois suplentes que assumiram no lugar de titulares licenciados. Isso
+resolve exatamente a dúvida original ("como saber quando foi a licença e por quanto tempo o
+suplente está substituindo") sem precisar de uma fonte nova: o titular licenciado simplesmente
+nunca aparece na folha (contribui R$0, corretamente), e o suplente já entra com a data certa.
+
+Cálculo: `meses = meses entre max(data_admissao, início da legislatura atual) e a última
+competência coletada`, multiplicado pelo valor bruto mais recente conhecido da pessoa. Validado
+em 2026-07-30: 11 pessoas com 19 meses (01/2025 a 07/2026), total R$ 1.245.246,70, batendo com a
+soma manual. Sempre rotulado como "estimativa" (não "gasto confirmado"), com aviso explícito de
+que reajustes salariais no meio do caminho não são considerados - não temos como saber disso
+sem o histórico 2025, que está bloqueado (ver limitação acima). Exibido em `index.html` (tile +
+legenda) e por vereador em `vereador.html` (linha "Estimativa desde o início do mandato..." logo
+acima da tabela mensal). De brinde, o perfil do vereador agora mostra um selo "Licenciado"
+quando aplicável (`vereador.licenciado`, já coletado há tempo mas nunca exibido antes) - sem
+isso, sumir a seção de Remuneração pra um licenciado ficava sem explicação visível.
 
 ## Em aberto
 
