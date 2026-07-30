@@ -135,7 +135,10 @@ def _parse_csv(conteudo: bytes, ano: int, mes: int):
 
 
 def scrape_remuneracao(ano_inicio: int = None, ano_fim: int = None) -> dict:
-    ano_inicio = ano_inicio or _legislatura_atual_inicio().year
+    # Default = só o ano corrente. Trocar de "Exercício" pra um ano anterior é um bug
+    # confirmado do portal (ver ROADMAP.md) - só tentar um ano_inicio anterior de propósito,
+    # nunca como comportamento automático do pipeline diário.
+    ano_inicio = ano_inicio or date.today().year
     ano_fim = ano_fim or date.today().year
 
     total = 0

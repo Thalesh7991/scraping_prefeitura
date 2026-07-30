@@ -2,7 +2,7 @@ name: Publicar site
 
 on:
   push:
-    branches: [web-publico]  # trocar para main após o merge desta branch
+    branches: [main]
   schedule:
     - cron: "0 9 * * *"  # 09:00 UTC (06:00 em Botucatu) todos os dias
   workflow_dispatch: {}
@@ -32,10 +32,17 @@ jobs:
           python-version: "3.11"
 
       - name: Instalar dependências
-        run: pip install requests beautifulsoup4
+        run: pip install requests beautifulsoup4 playwright
+
+      - name: Instalar navegador do Playwright (usado só pelo scraper de remuneração)
+        run: playwright install --with-deps chromium
 
       - name: Rodar scraper (gera o SQLite local, não versionado)
         run: python -m src.main --mode full
+
+      - name: Coletar remuneração do portal de transparência (ano corrente)
+        run: python -m src.scraper_transparencia
+        continue-on-error: true # portal de terceiros tem instabilidades conhecidas (ver ROADMAP.md) - não deve derrubar o deploy do resto do site
 
       - name: Exportar legislatura atual para JSON (site/data/*.json)
         run: python -m src.export_json
