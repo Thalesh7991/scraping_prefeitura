@@ -126,11 +126,37 @@ diferente da remuneração onde "estimativa" vs. "confirmado" continua rotulado)
 usuário conferir os 13 textos pessoalmente** antes de considerar isso definitivo (revisão
 automática por mim não substitui a leitura do dono do projeto).
 
-**Não implementado nessa rodada / possível refinamento futuro**: alguns padrões regex ainda erram
-por causa de plural (ex.: "licitações" não bate no padrão pensado pra "licitação" - falha
-silenciosa, reduz um pouco a categoria "Administração e Institucional", não gera classificação
-errada). Taxonomia de tema (Saúde/Educação/etc.) além do binário cerimonial/substantivo não foi
-revisitada nessa rodada especificamente para refinar por LLM - segue determinística, como decidido.
+**Refinamentos feitos ainda em 2026-07-30, depois da primeira revisão**:
+- **Bug de adjacência no regex de datas comemorativas**: "Institui **no município de Botucatu** o
+  Dia da Conscientização sobre o Daltonismo" não batia no padrão (exigia "institui" colado em
+  "o dia"), então caía como "Outros/Não identificado" e quase virou destaque de "projeto de lei
+  com efeito prático" no resumo do Carlos Trigo - exatamente o tipo de erro que essa categorização
+  existe pra evitar. Corrigido ampliando a janela de caracteres entre "institui" e "dia/semana/mês"
+  (`CATEGORIA_PATTERNS` em `src/config.py`); Câmara inteira passou de 17,0% pra 17,2% cerimonial
+  (mudança pequena, o achado grande já estava certo).
+- **Projetos de lei em destaque, não percentual**: a pedido do usuário, o resumo não fala mais em
+  "X% dos Projetos de Lei são de Saúde" - em vez disso, `_montar_fatos_por_vereador` monta uma
+  lista real (`projetos_de_lei_destaque`) com número/ano/ementa de cada PL **aprovado e não
+  cerimonial** daquele vereador, e o Gemini escolhe até 2 pra descrever concretamente o que fazem
+  (ex.: "obriga estabelecimentos a divulgar tratamento gratuito ao tabagismo pelo SUS"). Se a
+  lista vier vazia (todos os PLs aprovados são só cerimoniais, ou não há PL aprovado), o resumo diz
+  isso explicitamente em vez de forçar um destaque.
+- **Fecho fixo com o custo total, calculado em Python (não pelo LLM)**: a pedido do usuário, todo
+  resumo termina com "Até o momento, o vereador custou aos cofres públicos R$ X em remuneração
+  (estimativa)." - usando a mesma `estimativa_total` já calculada pra remuneração. Importante: essa
+  frase é **construída em `export_json.py` a cada exportação**, não gerada pelo Gemini nem
+  cacheada junto com o resto do texto - assim o valor em R$ sempre reflete os dados de remuneração
+  mais recentes (que atualizam todo dia), mesmo que o texto narrativo do Gemini não seja
+  regenerado. Pra licenciados sem dado de remuneração, o fecho explica que não há histórico
+  suficiente em vez de afirmar R$ 0,00 (que seria enganoso - não sabemos quanto custaram antes da
+  licença, já que falta o histórico de 2025, bloqueado - ver limitação em "Feito" acima).
+
+**Não implementado nessa rodada / possível refinamento futuro**: alguns padrões regex ainda podem
+errar por causa de plural em outros pontos (ex.: "licitações" vs. padrão pensado pra "licitação" -
+falha silenciosa, reduz um pouco a categoria "Administração e Institucional", não gera
+classificação errada). Taxonomia de tema (Saúde/Educação/etc.) além do binário
+cerimonial/substantivo não foi revisitada nessa rodada especificamente para refinar por LLM -
+segue determinística, como decidido.
 
 ## Em aberto
 

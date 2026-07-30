@@ -105,8 +105,8 @@ CATEGORIA_PATTERNS = [
      r"\bdenomina\b|\bd[áa]\s+o\s+nome\b|passa\s+a\s+denominar|"
      r"t[íi]tulo\s+de\s+cidad[ãa]o|cidad[ãa]o\s+benem[ée]rito|t[íi]tulo\s+honor[íi]fico"),
     ("Datas, Semanas e Campanhas Comemorativas",
-     r"institui.{0,45}\b(dia|semana|m[êe]s)\s+municipal|institui\s+a?\s*campanha|"
-     r"data\s+comemorativa|institui\s+o\s+dia|institui\s+a\s+semana"),
+     r"institui.{0,60}\b(dia|semana|m[êe]s)\s+(municipal|d[eao]s?)\b|institui\s+a?\s*campanha|"
+     r"data\s+comemorativa"),
     ("Utilidade Pública", r"utilidade\s+p[úu]blica"),
     ("Homenagens e Manifestações de Apreço/Pesar",
      r"congratula|\bp[êe]sames?\b|voto\s+de\s+pesar|falecimento|voto\s+de\s+aplauso|"

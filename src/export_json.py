@@ -42,6 +42,23 @@ def _normalizar_texto(texto):
     return sem_acento.lower()
 
 
+def _formatar_moeda(valor):
+    texto = f"{valor:,.2f}"
+    return "R$ " + texto.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def _frase_custo(estim):
+    """Fecho fixo do resumo de IA - construído aqui (não pelo LLM) pra sempre usar o valor
+    mais recente da estimativa, já que o texto gerado por IA é cacheado e não é regenerado
+    todo dia junto com o resto dos dados de remuneração."""
+    if not estim:
+        return (
+            "Não há dados suficientes para estimar o quanto este vereador já custou aos "
+            "cofres públicos (sem histórico de remuneração anterior à licença)."
+        )
+    return f"Até o momento, o vereador custou aos cofres públicos {_formatar_moeda(estim['estimativa_total'])} em remuneração (estimativa)."
+
+
 def categoria_de_ementa(ementa):
     """Assunto real da propositura (eixo independente de tipo/família) - ver
     CATEGORIA_PATTERNS em config.py pro porquê da ordem e das regras."""
@@ -159,12 +176,14 @@ def exportar():
             {"nome": r["nome"], "cargo": r["cargo"], "data_inicio": r["data_inicio"], "data_fim": r["data_fim"]}
             for r in comissoes_rows if r["vereador_id"] == v["id"]
         ]
+        estim = estimativas.get(v["id"])
+        resumo_base = resumos.get(v["nome"], {}).get("resumo")
         vereadores_json.append({
             "id": v["id"], "nome": v["nome"], "apelido": v["apelido"], "partido": v["partido"],
             "email": v["email"], "foto_url": v["foto_url"], "licenciado": bool(v["licenciado"]),
             "bio": v["bio"], "legislaturas": legs, "comissoes": coms,
-            "estimativa_remuneracao": estimativas.get(v["id"]),
-            "resumo_atuacao": resumos.get(v["nome"], {}).get("resumo"),
+            "estimativa_remuneracao": estim,
+            "resumo_atuacao": f"{resumo_base} {_frase_custo(estim)}" if resumo_base else None,
         })
 
     proposituras_json = []

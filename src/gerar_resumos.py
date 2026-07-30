@@ -27,7 +27,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from .config import config
+from .config import CATEGORIAS_CERIMONIAIS, config
 from .export_json import _estimativas_por_vereador, categoria_de_ementa, status_de_situacao
 
 load_dotenv()
@@ -47,7 +47,16 @@ prédio, data comemorativa, utilidade pública), diga isso claramente e sem suav
 informação relevante para o cidadão, mesmo que não seja lisonjeira.
 - Se a pessoa estiver licenciada ou tiver assumido o mandato depois do início da legislatura, \
 mencione isso como contexto (não é justo comparar o volume dela com quem está desde o início).
-- Escreva em português, tom analítico e neutro, entre 3 e 5 frases corridas (sem tópicos, \
+- Para os Projetos de Lei: NÃO resuma por percentual de assunto (ex.: "40% sobre saúde"). Em vez \
+disso, escolha até 2 projetos da lista "Projetos de lei aprovados com efeito prático" abaixo - os \
+que você julgar mais relevantes para a vida do cidadão - e diga em poucas palavras o que cada um \
+faz de concreto. Use EXCLUSIVAMENTE os projetos dessa lista, com a ementa exatamente como \
+fornecida - nunca invente outro projeto ou outro efeito que não esteja no texto da ementa. Se \
+essa lista vier vazia, diga explicitamente que a pessoa não tem projeto de lei com efeito prático \
+aprovado nesta legislatura (mesmo que tenha Projetos de Lei aprovados só de natureza cerimonial).
+- NÃO mencione remuneração, salário ou valores em R$ - isso é acrescentado automaticamente \
+depois do seu texto, com o valor mais atualizado no momento de exibição.
+- Escreva em português, tom analítico e neutro, entre 3 e 6 frases corridas (sem tópicos, \
 sem markdown, sem saudação).
 """
 
@@ -89,6 +98,13 @@ def _montar_fatos_por_vereador(conn, legislatura_atual_inicio):
             s = status_de_situacao(p["situacao"])
             status_normativos[s] = status_normativos.get(s, 0) + 1
 
+        pls_destaque = [
+            {"numero": p["numero"], "ano": p["ano"], "ementa": p["ementa"]}
+            for p in normativos
+            if status_de_situacao(p["situacao"]) == "Aprovado"
+            and categoria_de_ementa(p["ementa"]) not in CATEGORIAS_CERIMONIAIS
+        ]
+
         estim = estimativas.get(v["id"])
         contexto_mandato = "Em exercício desde o início da legislatura atual."
         if v["licenciado"]:
@@ -107,7 +123,7 @@ def _montar_fatos_por_vereador(conn, legislatura_atual_inicio):
             "por_categoria": sorted(contagem_categoria.items(), key=lambda kv: -kv[1]),
             "por_tipo": sorted(contagem_tipo.items(), key=lambda kv: -kv[1]),
             "projetos_de_lei_status": sorted(status_normativos.items(), key=lambda kv: -kv[1]),
-            "remuneracao_mensal_atual": estim["ultimo_proventos"] if estim else None,
+            "projetos_de_lei_destaque": pls_destaque,
         }
     return fatos
 
@@ -128,8 +144,12 @@ def _formatar_prompt(nome, fatos):
             "Situação dos Projetos de Lei apresentados: "
             + ", ".join(f"{s} ({n})" for s, n in fatos["projetos_de_lei_status"])
         )
-    if fatos["remuneracao_mensal_atual"]:
-        linhas.append(f"Remuneração bruta mensal atual: R$ {fatos['remuneracao_mensal_atual']:.2f}")
+    if fatos["projetos_de_lei_destaque"]:
+        linhas.append("Projetos de lei aprovados com efeito prático (não cerimoniais):")
+        for pl in fatos["projetos_de_lei_destaque"]:
+            linhas.append(f"  - PL nº {pl['numero']}/{pl['ano']}: {pl['ementa']}")
+    else:
+        linhas.append("Projetos de lei aprovados com efeito prático (não cerimoniais): nenhum.")
     return INSTRUCOES + "\n\nDados:\n" + "\n".join(linhas)
 
 
