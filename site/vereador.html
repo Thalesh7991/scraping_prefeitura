@@ -57,7 +57,7 @@ function montarSelect(vereadores, idSelecionado) {
 }
 
 function renderizarPerfil(id) {
-  const { proposituras, vereadoresPorId } = DADOS;
+  const { proposituras, vereadoresPorId, remuneracao } = DADOS;
   const vereador = vereadoresPorId[id];
   const el = document.getElementById("perfil-conteudo");
   if (!vereador) {
@@ -85,6 +85,22 @@ function renderizarPerfil(id) {
       </details>`
     : "";
 
+  const minhaRemuneracao = remuneracao
+    .filter((r) => r.vereador_id === id)
+    .sort((a, b) => (b.ano * 100 + b.mes) - (a.ano * 100 + a.mes));
+  const remuneracaoHtml = minhaRemuneracao.length
+    ? `<h3 class="section-title">Remuneração</h3>
+       <p class="section-caption">Valor líquido pago por mês, segundo o portal de transparência da Câmara (fonte separada da Siscam).</p>
+       <div class="table-wrap"><table>
+         <thead><tr><th>Mês</th><th>Cargo</th><th>Líquido</th></tr></thead>
+         <tbody>${minhaRemuneracao.map((r) => `<tr>
+           <td>${CamaraData.NOMES_MES[r.mes - 1]}/${r.ano}</td>
+           <td>${CamaraData.escapeHtml(r.cargo)}</td>
+           <td>${CamaraData.formatarMoeda(r.liquido)}</td>
+         </tr>`).join("")}</tbody>
+       </table></div>`
+    : "";
+
   el.innerHTML = `
     <div class="card perfil-header">
       ${vereador.foto_url ? `<img class="foto" src="${CamaraData.escapeHtml(vereador.foto_url)}" alt="Foto de ${CamaraData.escapeHtml(vereador.nome)}">` : ""}
@@ -97,6 +113,8 @@ function renderizarPerfil(id) {
         ${comissoesHtml}
       </div>
     </div>
+
+    ${remuneracaoHtml}
 
     <h3 class="section-title">Propostas apresentadas (${minhas.length})</h3>
     <div class="card chart-card"><div class="chart-wrap"><canvas id="grafico-perfil-tipo"></canvas></div></div>

@@ -11,13 +11,27 @@ const CamaraData = (() => {
         fetch("data/proposituras.json").then((r) => r.json()),
         fetch("data/vereadores.json").then((r) => r.json()),
         fetch("data/meta.json").then((r) => r.json()),
-      ]).then(([proposituras, vereadores, meta]) => {
+        fetch("data/remuneracao.json").then((r) => r.json()),
+      ]).then(([proposituras, vereadores, meta, remuneracao]) => {
         const vereadoresPorId = {};
         vereadores.forEach((v) => (vereadoresPorId[v.id] = v));
-        return { proposituras, vereadores, vereadoresPorId, meta };
+        return { proposituras, vereadores, vereadoresPorId, meta, remuneracao };
       });
     }
     return cachePromise;
+  }
+
+  function periodoRemuneracao(remuneracao) {
+    if (!remuneracao.length) return null;
+    const chave = (r) => r.ano * 100 + r.mes;
+    const ordenado = remuneracao.slice().sort((a, b) => chave(a) - chave(b));
+    const primeiro = ordenado[0];
+    const ultimo = ordenado[ordenado.length - 1];
+    const nomeMes = (m) => ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][m - 1];
+    if (primeiro.ano === ultimo.ano && primeiro.mes === ultimo.mes) {
+      return `${nomeMes(primeiro.mes)}/${primeiro.ano}`;
+    }
+    return `${nomeMes(primeiro.mes)}/${primeiro.ano} a ${nomeMes(ultimo.mes)}/${ultimo.ano}`;
   }
 
   function formatarData(iso) {
@@ -29,6 +43,14 @@ const CamaraData = (() => {
   function formatarNumero(n) {
     return Number(n).toLocaleString("pt-BR");
   }
+
+  function formatarMoeda(n) {
+    if (n === null || n === undefined) return "—";
+    return Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  const NOMES_MES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
   function agrupar(lista, chave) {
     const contagem = {};
@@ -153,6 +175,8 @@ const CamaraData = (() => {
     carregar,
     formatarData,
     formatarNumero,
+    formatarMoeda,
+    periodoRemuneracao,
     agrupar,
     autoresDe,
     escapeHtml,
@@ -163,5 +187,6 @@ const CamaraData = (() => {
     CORES_FAMILIA,
     STATUS_ORDEM,
     CORES_STATUS,
+    NOMES_MES,
   };
 })();

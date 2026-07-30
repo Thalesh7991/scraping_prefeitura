@@ -24,7 +24,9 @@
     <div class="card stat-tile"><p class="stat-label">Propostas de lei e normas</p><p class="stat-value" id="stat-normativos">—</p></div>
     <div class="card stat-tile"><p class="stat-label">Taxa de aprovação (leis e normas)</p><p class="stat-value" id="stat-taxa">—</p></div>
     <div class="card stat-tile"><p class="stat-label">Vereadores em exercício</p><p class="stat-value" id="stat-vereadores">—</p></div>
+    <div class="card stat-tile"><p class="stat-label">Gasto com remuneração</p><p class="stat-value moeda" id="stat-remuneracao">—</p></div>
   </div>
+  <p class="section-caption" id="legenda-remuneracao"></p>
 
   <h3 class="section-title">O que os vereadores têm proposto</h3>
   <p class="section-caption">Nem toda proposta é uma lei - veja abaixo os diferentes tipos de atuação.</p>
@@ -61,7 +63,7 @@
 <script>
 montarLayout("index");
 
-CamaraData.carregar().then(({ proposituras, meta }) => {
+CamaraData.carregar().then(({ proposituras, meta, remuneracao }) => {
   atualizarCabecalho(meta);
 
   const normativos = proposituras.filter((p) => p.familia === "Normativos");
@@ -72,6 +74,13 @@ CamaraData.carregar().then(({ proposituras, meta }) => {
   document.getElementById("stat-normativos").textContent = CamaraData.formatarNumero(normativos.length);
   document.getElementById("stat-taxa").textContent = `${taxa}%`;
   document.getElementById("stat-vereadores").textContent = meta.total_vereadores;
+
+  const totalRemuneracao = remuneracao.reduce((soma, r) => soma + (r.liquido || 0), 0);
+  document.getElementById("stat-remuneracao").textContent = CamaraData.formatarMoeda(totalRemuneracao);
+  const periodo = CamaraData.periodoRemuneracao(remuneracao);
+  document.getElementById("legenda-remuneracao").textContent = periodo
+    ? `Soma do valor líquido pago a vereadores (${periodo}), segundo o portal de transparência da Câmara - fonte separada da Siscam, pode não cobrir o mandato inteiro ainda.`
+    : "";
 
   // Por família
   const porFamilia = CamaraData.agrupar(proposituras, "familia_label");

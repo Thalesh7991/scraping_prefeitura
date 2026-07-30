@@ -183,7 +183,9 @@ h2.page-title { font-size: 1.6rem; margin: 0 0 .3rem; font-weight: 800; color: v
   font-size: 2rem;
   font-weight: 800;
   color: var(--navy);
+  overflow-wrap: break-word;
 }
+.stat-tile .stat-value.moeda { font-size: 1.3rem; white-space: nowrap; }
 :root[data-theme="dark"] .stat-tile .stat-value { color: #8fb3ef; }
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) .stat-tile .stat-value { color: #8fb3ef; }
