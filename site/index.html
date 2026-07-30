@@ -23,7 +23,6 @@
     <div class="card stat-tile"><p class="stat-label">Propostas apresentadas</p><p class="stat-value" id="stat-total">—</p></div>
     <div class="card stat-tile"><p class="stat-label">Propostas de lei e normas</p><p class="stat-value" id="stat-normativos">—</p></div>
     <div class="card stat-tile"><p class="stat-label">Taxa de aprovação (leis e normas)</p><p class="stat-value" id="stat-taxa">—</p></div>
-    <div class="card stat-tile"><p class="stat-label">Cerimonial/simbólico (sem efeito de lei)</p><p class="stat-value" id="stat-cerimonial">—</p></div>
     <div class="card stat-tile"><p class="stat-label">Vereadores em exercício</p><p class="stat-value" id="stat-vereadores">—</p></div>
     <div class="card stat-tile"><p class="stat-label">Gasto com remuneração desde o início do mandato</p><p class="stat-value moeda" id="stat-remuneracao">—</p></div>
   </div>
@@ -80,10 +79,6 @@ CamaraData.carregar().then(({ proposituras, meta, remuneracao }) => {
   document.getElementById("stat-total").textContent = CamaraData.formatarNumero(proposituras.length);
   document.getElementById("stat-normativos").textContent = CamaraData.formatarNumero(normativos.length);
   document.getElementById("stat-taxa").textContent = `${taxa}%`;
-
-  const cerimoniais = proposituras.filter((p) => p.categoria_cerimonial);
-  const taxaCerimonial = proposituras.length ? Math.round((cerimoniais.length / proposituras.length) * 100) : 0;
-  document.getElementById("stat-cerimonial").textContent = `${taxaCerimonial}%`;
 
   document.getElementById("stat-vereadores").textContent = meta.total_vereadores;
 
