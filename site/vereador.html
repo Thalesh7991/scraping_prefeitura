@@ -90,17 +90,10 @@ function renderizarPerfil(id) {
     .sort((a, b) => (b.ano * 100 + b.mes) - (a.ano * 100 + a.mes));
   const ultimaRemuneracao = minhaRemuneracao[0];
   const estim = vereador.estimativa_remuneracao;
-  const estimativaHtml = estim
-    ? `<p class="section-caption"><strong>Estimativa desde o início do mandato (até ${estim.ultima_competencia}):</strong>
-        ${CamaraData.formatarMoeda(estim.estimativa_total)} — ${estim.meses_estimados} meses × ${CamaraData.formatarMoeda(estim.ultimo_proventos)}/mês
-        (valor mais recente conhecido; não considera possíveis reajustes salariais no meio do caminho).</p>`
-    : "";
   const remuneracaoHtml = ultimaRemuneracao
     ? `<h3 class="section-title">Remuneração</h3>
-       <p class="section-caption">Segundo o portal de transparência da Câmara (fonte separada da Siscam) - valor bruto, antes de descontos.</p>
-       <p><strong>Valor mensal atual:</strong> ${CamaraData.formatarMoeda(ultimaRemuneracao.proventos)} como ${CamaraData.escapeHtml(CamaraData.tituloCase(ultimaRemuneracao.cargo))}
-        (competência ${CamaraData.NOMES_MES[ultimaRemuneracao.mes - 1]}/${ultimaRemuneracao.ano})</p>
-       ${estimativaHtml}`
+       <p><strong>Valor mensal atual:</strong> ${CamaraData.formatarMoeda(ultimaRemuneracao.proventos)}</p>
+       ${estim ? `<p><strong>Recebido desde o início do mandato (estimativa):</strong> ${CamaraData.formatarMoeda(estim.estimativa_total)}</p>` : ""}`
     : "";
 
   el.innerHTML = `
