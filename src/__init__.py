@@ -1,27 +1,21 @@
 """
 Scraper da Câmara de Vereadores de Botucatu
 
-Este pacote contém ferramentas para coletar dados dos vereadores
-e suas proposituras do site da Câmara Municipal de Botucatu.
+Coleta dados de vereadores e proposituras do site da Câmara Municipal de Botucatu
+(sistema Siscam) para alimentar um dashboard público em Streamlit.
 """
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 __author__ = "Thales Pinto"
 
 from .config import config
-from .database import db_manager, Vereador, Propositura
-from .scraper import CamaraScraper, scrape_vereadores_sync
-from .main import ScrapingOrchestrator
-from .utils import setup_logging, metrics
+from .database import db_manager
+from .scraper_proposituras import scrape_proposituras
+from .scraper_vereadores import scrape_vereadores
 
 __all__ = [
-    'config',
-    'db_manager', 
-    'Vereador',
-    'Propositura',
-    'CamaraScraper',
-    'scrape_vereadores_sync',
-    'ScrapingOrchestrator',
-    'setup_logging',
-    'metrics'
-] 
+    "config",
+    "db_manager",
+    "scrape_vereadores",
+    "scrape_proposituras",
+]

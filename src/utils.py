@@ -1,252 +1,138 @@
 import logging
-import time
+import re
 import sys
-from datetime import datetime
+import time
+from datetime import datetime, date
 from pathlib import Path
-from contextlib import contextmanager
-from typing import Any, Dict, List
-import json
+from typing import Optional
+
+import requests
+from bs4 import BeautifulSoup
 
 from .config import config
 
+logger = logging.getLogger(__name__)
+
+_last_request_time = 0.0
+
+
 def setup_logging(level: int = logging.INFO):
-    """Configura sistema de logging"""
-    
-    # Criar diretório de logs se não existir
+    """Configura logging para arquivo + console."""
     log_dir = Path(config.logs_dir)
     log_dir.mkdir(exist_ok=True)
-    
-    # Nome do arquivo de log com timestamp
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = log_dir / f"scraping_{timestamp}.log"
-    
-    # Configurar formatação
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    # Handler para arquivo
-    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
-    
-    # Handler para console
+
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
-    
-    # Configurar logger root
+
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
-    
-    # Silenciar logs de bibliotecas externas
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('aiohttp').setLevel(logging.WARNING)
-    
-    logging.info(f"Sistema de logging configurado. Arquivo: {log_file}")
 
-@contextmanager
-def measure_time(operation_name: str):
-    """Context manager para medir tempo de execução"""
-    logger = logging.getLogger(__name__)
-    start_time = time.time()
-    
-    logger.info(f"Iniciando operação: {operation_name}")
-    
-    try:
-        yield
-    finally:
-        duration = time.time() - start_time
-        logger.info(f"Operação '{operation_name}' concluída em {duration:.2f}s")
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.info(f"Logging configurado. Arquivo: {log_file}")
 
-class MetricsCollector:
-    """Coletor de métricas de performance"""
-    
-    def __init__(self):
-        self.metrics: Dict[str, Any] = {
-            'start_time': None,
-            'end_time': None,
-            'operations': [],
-            'errors': [],
-            'requests_count': 0,
-            'data_collected': {}
-        }
-    
-    def start_session(self):
-        """Inicia uma sessão de métricas"""
-        self.metrics['start_time'] = datetime.now()
-    
-    def end_session(self):
-        """Finaliza uma sessão de métricas"""
-        self.metrics['end_time'] = datetime.now()
-    
-    def record_operation(self, name: str, duration: float, success: bool = True):
-        """Registra uma operação"""
-        self.metrics['operations'].append({
-            'name': name,
-            'duration': duration,
-            'success': success,
-            'timestamp': datetime.now()
-        })
-    
-    def record_error(self, error: str, context: str = None):
-        """Registra um erro"""
-        self.metrics['errors'].append({
-            'error': error,
-            'context': context,
-            'timestamp': datetime.now()
-        })
-    
-    def increment_requests(self):
-        """Incrementa contador de requisições"""
-        self.metrics['requests_count'] += 1
-    
-    def set_data_collected(self, key: str, count: int):
-        """Define quantidade de dados coletados"""
-        self.metrics['data_collected'][key] = count
-    
-    def get_summary(self) -> Dict[str, Any]:
-        """Retorna resumo das métricas"""
-        if not self.metrics['start_time']:
-            return {}
-        
-        total_duration = None
-        if self.metrics['end_time']:
-            total_duration = (self.metrics['end_time'] - self.metrics['start_time']).total_seconds()
-        
-        successful_ops = [op for op in self.metrics['operations'] if op['success']]
-        failed_ops = [op for op in self.metrics['operations'] if not op['success']]
-        
-        return {
-            'session_duration': total_duration,
-            'total_operations': len(self.metrics['operations']),
-            'successful_operations': len(successful_ops),
-            'failed_operations': len(failed_ops),
-            'total_requests': self.metrics['requests_count'],
-            'total_errors': len(self.metrics['errors']),
-            'data_collected': self.metrics['data_collected'],
-            'avg_operation_time': sum(op['duration'] for op in successful_ops) / len(successful_ops) if successful_ops else 0
-        }
-    
-    def save_to_file(self, filename: str = None):
-        """Salva métricas em arquivo JSON"""
-        if not filename:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"metrics_{timestamp}.json"
-        
-        filepath = Path(config.data_dir) / filename
-        
-        # Converter datetime para string para serialização JSON
-        metrics_copy = self.metrics.copy()
-        for key in ['start_time', 'end_time']:
-            if metrics_copy[key]:
-                metrics_copy[key] = metrics_copy[key].isoformat()
-        
-        for op in metrics_copy['operations']:
-            op['timestamp'] = op['timestamp'].isoformat()
-        
-        for error in metrics_copy['errors']:
-            error['timestamp'] = error['timestamp'].isoformat()
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(metrics_copy, f, indent=2, ensure_ascii=False)
-        
-        logging.info(f"Métricas salvas em: {filepath}")
 
-def clean_text(text: str) -> str:
-    """Limpa e normaliza texto"""
+def _wait_for_rate_limit():
+    global _last_request_time
+    elapsed = time.time() - _last_request_time
+    delay = config.scraping.request_delay
+    if elapsed < delay:
+        time.sleep(delay - elapsed)
+    _last_request_time = time.time()
+
+
+def fetch_soup(url: str, params: Optional[dict] = None) -> Optional[BeautifulSoup]:
+    """GET com rate limiting simples + retry com backoff exponencial."""
+    cfg = config.scraping
+
+    for attempt in range(cfg.max_retries + 1):
+        _wait_for_rate_limit()
+        try:
+            logger.debug(f"GET {url} params={params} (tentativa {attempt + 1})")
+            response = requests.get(url, params=params, headers=cfg.headers, timeout=30)
+            response.raise_for_status()
+            return BeautifulSoup(response.text, "html.parser")
+        except requests.RequestException as e:
+            logger.warning(f"Erro ao acessar {url} (tentativa {attempt + 1}): {e}")
+            if attempt < cfg.max_retries:
+                wait_time = cfg.retry_delay * (2 ** attempt)
+                time.sleep(wait_time)
+
+    logger.error(f"Falha definitiva ao acessar {url} após {cfg.max_retries + 1} tentativas")
+    return None
+
+
+def fetch_json(url: str, params: Optional[dict] = None) -> Optional[dict]:
+    """GET com rate limiting/retry, retornando JSON decodificado."""
+    cfg = config.scraping
+
+    for attempt in range(cfg.max_retries + 1):
+        _wait_for_rate_limit()
+        try:
+            logger.debug(f"GET (json) {url} params={params} (tentativa {attempt + 1})")
+            response = requests.get(url, params=params, headers=cfg.headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as e:
+            logger.warning(f"Erro ao acessar {url} (tentativa {attempt + 1}): {e}")
+            if attempt < cfg.max_retries:
+                time.sleep(cfg.retry_delay * (2 ** attempt))
+
+    logger.error(f"Falha definitiva ao acessar {url} após {cfg.max_retries + 1} tentativas")
+    return None
+
+
+def clean_text(text: Optional[str]) -> str:
     if not text:
         return ""
-    
-    # Remover quebras de linha e espaços extras
-    cleaned = ' '.join(text.split())
-    
-    # Remover caracteres especiais problemáticos
-    cleaned = cleaned.replace('\xa0', ' ')  # Non-breaking space
-    cleaned = cleaned.replace('\u200b', '')  # Zero-width space
-    
+    cleaned = " ".join(text.split())
+    cleaned = cleaned.replace("\xa0", " ").replace("​", "")
     return cleaned.strip()
 
-def safe_get_text(element, default: str = "") -> str:
-    """Extrai texto de elemento HTML de forma segura"""
-    if not element:
-        return default
-    
-    try:
-        return clean_text(element.get_text())
-    except:
-        return default
 
-def parse_date_br(date_str: str) -> datetime:
-    """Parse de data no formato brasileiro dd/mm/yyyy"""
-    try:
-        return datetime.strptime(date_str.strip(), '%d/%m/%Y')
-    except ValueError:
-        raise ValueError(f"Data inválida: {date_str}")
+_DATE_RE = re.compile(r"(\d{2})/(\d{2})/(\d{4})")
 
-def normalize_vereador_name(name: str) -> str:
-    """Normaliza nome de vereador"""
-    if not name:
-        return ""
-    
-    # Remover prefixos comuns
-    name = name.strip()
-    
-    # Extrair nome após hífen se existir
-    if ' - ' in name:
-        name = name.split(' - ')[-1].strip()
-    
-    return clean_text(name)
 
-def extract_number_from_text(text: str) -> int:
-    """Extrai número de texto, retornando 0 se não encontrar"""
+def parse_date_br(text: Optional[str]) -> Optional[date]:
+    """Extrai uma data dd/mm/aaaa de um texto (tolerante a texto ao redor)."""
     if not text:
-        return 0
-    
-    text = text.strip()
-    
-    if text == '-' or text == '':
-        return 0
-    
+        return None
+    match = _DATE_RE.search(text)
+    if not match:
+        return None
+    day, month, year = match.groups()
     try:
-        return int(text)
+        return date(int(year), int(month), int(day))
     except ValueError:
-        # Tentar extrair apenas os dígitos
-        import re
-        numbers = re.findall(r'\d+', text)
-        if numbers:
-            return int(numbers[0])
-        return 0
+        return None
 
-def create_backup_filename(base_name: str, extension: str = "json") -> str:
-    """Cria nome de arquivo de backup com timestamp"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{base_name}_backup_{timestamp}.{extension}"
 
-def ensure_directory_exists(path: str):
-    """Garante que um diretório existe"""
-    Path(path).mkdir(parents=True, exist_ok=True)
+def parse_periodo_br(text: Optional[str]):
+    """Extrai (data_inicio, data_fim) de um texto tipo '01/01/2025 - 31/12/2028'.
+    O separador pode ser hífen, en-dash ou em-dash. data_fim pode estar ausente
+    (mandato em curso)."""
+    if not text:
+        return None, None
+    dates = _DATE_RE.findall(text)
+    inicio = date(int(dates[0][2]), int(dates[0][1]), int(dates[0][0])) if len(dates) >= 1 else None
+    fim = date(int(dates[1][2]), int(dates[1][1]), int(dates[1][0])) if len(dates) >= 2 else None
+    return inicio, fim
 
-def format_duration(seconds: float) -> str:
-    """Formata duração em formato legível"""
-    if seconds < 60:
-        return f"{seconds:.1f}s"
-    elif seconds < 3600:
-        minutes = seconds // 60
-        secs = seconds % 60
-        return f"{int(minutes)}m {secs:.1f}s"
-    else:
-        hours = seconds // 3600
-        minutes = (seconds % 3600) // 60
-        secs = seconds % 60
-        return f"{int(hours)}h {int(minutes)}m {secs:.1f}s"
 
-def chunk_list(lst: List[Any], chunk_size: int) -> List[List[Any]]:
-    """Divide lista em chunks menores"""
-    for i in range(0, len(lst), chunk_size):
-        yield lst[i:i + chunk_size]
-
-# Instância global do coletor de métricas
-metrics = MetricsCollector() 
+def extract_id_from_href(href: Optional[str]) -> Optional[int]:
+    """Extrai o valor do parâmetro ?id=NNN de uma URL/href."""
+    if not href:
+        return None
+    match = re.search(r"[?&]id=(\d+)", href)
+    return int(match.group(1)) if match else None

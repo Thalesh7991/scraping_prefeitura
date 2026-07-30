@@ -1,0 +1,26 @@
+name: Rodar scraper (validação)
+
+# O agendamento diário foi desativado temporariamente: o passo de publicação dos dados
+# está sendo redesenhado (ver branch `web-publico` - exportação para JSON + GitHub Pages,
+# em vez de commitar o arquivo .db). Por enquanto este workflow só roda sob demanda, como
+# verificação de que o scraper continua funcionando contra o site oficial.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependências
+        run: pip install requests beautifulsoup4
+
+      - name: Rodar scraper
+        run: python -m src.main --mode full
