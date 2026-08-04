@@ -1,123 +1,173 @@
 # FiscalizAI Botucatu
 
-Site público com a atuação dos vereadores da Câmara Municipal de Botucatu: propostas
-apresentadas, taxa de aprovação, comparativos e busca — construído a partir de scraping do site
-oficial (`camarabotucatu.sp.gov.br`).
+**Pipeline de dados + IA para fiscalizar a atuação da Câmara Municipal de Botucatu — do
+scraping à produção.**
 
-Projeto pessoal de aprendizado que evoluiu de notebooks exploratórios (`notebooks/Ciclo1..5.ipynb`,
-histórico mantido no repositório) para um pipeline de coleta (Python + SQLite) que alimenta dois
-front-ends: um site estático (HTML/CSS/JS, a "porta de entrada" pública) e um dashboard Streamlit
-(ferramenta interna para análises mais profundas).
+🔗 **[Acesse o site ao vivo](https://thalesh7991.github.io/scraping_prefeitura/)**
 
-## Arquitetura
+`Python` · `SQLite` · `Playwright` · `Google Gemini API` · `GitHub Actions (CI/CD)` · `GitHub Pages`
+
+![Visão geral do FiscalizAI Botucatu](docs/screenshots/visao-geral.png)
+
+## O problema
+
+O site oficial da Câmara Municipal disponibiliza, publicamente, todo o histórico de propostas de
+cada vereador — mas de um jeito pensado para *arquivar documentos*, não para *informar cidadãos*.
+Descobrir o que um vereador específico andou fazendo exige navegar um sistema de busca avançada,
+entender uma taxonomia de tipos formais (Projeto de Lei, Requerimento, Indicação, Moção...) e,
+mesmo assim, não sobra claro **o que cada proposta significa de fato**: um "Projeto de Lei" tanto
+pode criar uma política pública quanto só dar nome a uma rua.
+
+O FiscalizAI resolve isso automatizando a coleta e reclassificando cada proposta pelo **assunto
+real do texto**, não pela categoria formal - e publica o resultado num site público, atualizado
+todos os dias, sem depender de ninguém pedir ou perguntar nada à Câmara.
+
+## O que a ferramenta faz
+
+- **Perfil individual de cada vereador**: todas as propostas apresentadas, remuneração
+  (valor atual e estimativa acumulada desde o início do mandato) e um resumo em texto gerado por
+  IA sobre a atuação.
+- **Classificação honesta por assunto**: 14 categorias calculadas por regra determinística sobre o
+  texto da ementa - as cerimoniais/simbólicas (denominação de rua, data comemorativa, utilidade
+  pública, homenagens) aparecem nomeadas ao lado das de política pública real, nunca escondidas
+  atrás de uma média.
+- **Comparação entre vereadores** por tipo de atuação, e **busca textual** com filtros em todas as
+  proposituras já coletadas.
+- **Gasto com remuneração**: coletado do portal de transparência da Prefeitura e cruzado com o
+  histórico de mandato de cada vereador (titular licenciado x suplente que assumiu).
+
+## Principais achados
+
+A motivação inicial era simples - "os vereadores não estão fazendo só coisa inútil?" - então a
+primeira coisa que o projeto precisou responder foi: **o que, de fato, a Câmara produz?**
+Validado contra as 7.234 proposituras já coletadas (2021–2026):
+
+| Achado | Número |
+|---|---|
+| Do total de proposituras, são cerimoniais/simbólicas (sem efeito de lei) | **17%** |
+| Dos **Projetos de Lei** especificamente - o tipo que soa mais "sério" | **68% são cerimoniais** (denominação de rua, utilidade pública, data comemorativa) |
+| Dos **Requerimentos** - o tipo que soa mais burocrático | **apenas 9%** são cerimoniais; o resto é fiscalização e pedido real ao Executivo |
+
+O achado central: **o tipo formal de uma proposta não prevê a substância dela** — "Projeto de Lei",
+o tipo mais associado a produção legislativa séria, é justamente o mais inflado por conteúdo
+simbólico. Só dava pra descobrir isso classificando pelo conteúdo real de cada ementa, não pelo
+rótulo burocrático.
+
+## Como funciona
 
 ```
-src/
-├── config.py               # URLs do site, parâmetros de busca, taxonomia de tipos/famílias
-├── database.py              # Schema e acesso ao SQLite (data/camara_botucatu.db)
-├── utils.py                  # HTTP com rate limiting/retry, parsing de datas/texto
-├── scraper_vereadores.py    # Lista de vereadores + perfil (bio, legislaturas, comissões)
-├── scraper_proposituras.py  # Busca paginada de proposituras (Siscam), autoria multi-vereador
-├── export_json.py            # Exporta o recorte da legislatura atual para site/data/*.json
-└── main.py                   # CLI orquestrador do scraper
-site/                          # Site público estático (HTML/CSS/JS puro, identidade navy/dourado)
-├── index.html                # Visão geral
-├── vereador.html               # Perfil do vereador
-├── comparar.html                # Comparar vereadores por tipo de atuação
-├── buscar.html                    # Busca textual + filtros
-├── assets/{style.css,data.js,layout.js,charts.js}
-└── data/*.json                # Gerado por export_json.py - não versionado (ver .gitignore)
-apps: streamlit_app.py        # Dashboard interno (Streamlit) - ferramenta de análise
-setup_database.py             # Cria o arquivo SQLite e as tabelas
-.github/workflows/
-├── scrape.yml                # Roda o scraper sob demanda (validação, na main)
-└── deploy-site.yml            # Scraper + export_json + publica site/ no GitHub Pages
+Site oficial da Câmara (Siscam)  ─┐
+Portal de transparência (Fiorilli)─┼─▶  scraper (requests/Playwright)  ─▶  SQLite
+                                   ┘                                         │
+                                                                             ▼
+                                                      classificação por regra (assunto,
+                                                      cerimonial x substantivo, situação)
+                                                                             │
+                                                                             ▼
+                                                 export_json.py  ─▶  site/data/*.json
+                                                                             │
+                                                                             ▼
+                                                        site estático (HTML/CSS/JS + Chart.js)
+                                                                             │
+                                                                             ▼
+                                                       GitHub Actions (diário) ─▶ GitHub Pages
 ```
 
-## Fonte dos dados
+O projeto nasceu de notebooks exploratórios (`notebooks/Ciclo1..5.ipynb`, mantidos no repositório
+como histórico) contra uma versão antiga do site da Câmara, hoje fora do ar. Depois de o site
+oficial mudar de sistema, o pipeline foi reconstruído do zero: scraper via GET estruturado (sem
+necessidade de navegador headless para a maior parte da coleta), banco SQLite com upserts
+idempotentes, e um site público estático publicado via CI/CD - sem servidor, sem custo de
+infraestrutura.
 
-O site da Câmara usa um sistema de busca avançada ("Siscam") para proposituras, acessível via
-GET com filtros estruturados — sem necessidade de JavaScript/headless browser. A coleta usa:
+### Decisões de engenharia
 
-- `GET /Vereadores` e `/Vereadores/Details?id=X` — vereadores atuais, biografia, legislaturas,
-  mandatos em mesas diretoras e comissões.
-- `GET /Siscam/Documentos?GrupoId=3&TipoAutorId=1&...` — proposituras de autoria de vereadores,
-  paginada e ordenada por data decrescente. A coleta cobre a legislatura atual + anterior
-  (2021–2028) e para automaticamente ao cruzar essa data de corte.
+**Regra determinística para classificar, IA só para narrar.** Cada proposta é classificada em uma
+de 14 categorias por regex sobre o texto da ementa - nunca por um modelo de linguagem. Isso importa
+porque a classificação sustenta uma alegação pública sobre o trabalho de uma pessoa real: precisa
+ser auditável ("bateu exatamente este trecho do texto"), não "a IA decidiu assim". A API do Gemini
+entra só depois, para transformar os números já calculados em um parágrafo legível por vereador -
+nunca para decidir o que é ou não relevante.
 
-### Taxonomia das proposituras
+**O resumo por IA roda offline, fora do pipeline diário.** Gerar o resumo custa uma chamada de API
+por vereador; os dados que o alimentam não mudam todo dia. Em vez de pagar esse custo (e correr o
+risco de uma falha de API derrubar o deploy) a cada execução, um script separado
+(`src/gerar_resumos.py`) roda sob demanda, cacheia por hash dos dados de entrada, e grava o
+resultado num arquivo versionado no git. O pipeline diário só *lê* esse arquivo.
 
-"Propositura" é a categoria guarda-chuva; dentro dela existem tipos com naturezas bem diferentes,
-agrupados em famílias usadas no dashboard:
+**Engenharia reversa de um portal de terceiros sem API.** Os dados de remuneração vêm de um
+portal de transparência (DevExpress/ASP.NET WebForms) sem API pública, que só carrega dados via
+callback JavaScript e exige controles client-side específicos para navegar entre meses. Depois de
+confirmar (por 7 abordagens distintas) que trocar o ano de exercício trava o portal de forma
+irrecuperável — um bug real do lado deles, não algo corrigível no cliente —, o scraper foi
+desenhado para coletar de forma confiável só o intervalo comprovadamente estável, documentando a
+limitação em vez de escondê-la.
 
-| Família | Tipos | O que significa |
-|---|---|---|
-| Normativos | Projetos de Lei, Lei Complementar, Decreto Legislativo, Emenda à Lei Orgânica, Resolução | Pode virar lei/norma — é onde "taxa de aprovação" faz sentido |
-| Fiscalização/Solicitações | Indicações, Requerimentos | Pedidos/sugestões ao Executivo ou à Mesa |
-| Manifestações políticas | Moções | Manifestação simbólica (aplauso, repúdio, pesar), sem efeito normativo |
-| Outros | Contas, Vetos | Naturezas distintas, tratadas à parte |
+## Stack técnica
 
-Vereadores da legislatura 2021–2024 que não estão mais em exercício não têm página de perfil
-própria no site atual — são conhecidos apenas pelo nome extraído do campo "Autoria" das
-proposituras (marcados com `perfil_completo=0` no banco).
+| Camada | Tecnologia |
+|---|---|
+| Coleta | `requests` + `BeautifulSoup` (Siscam), `Playwright` (portal de transparência) |
+| Persistência | `SQLite` |
+| Classificação/análise | `Python` (regex determinístico) |
+| Resumo em linguagem natural | `Google Gemini API` |
+| Front-end | HTML/CSS/JS estático + `Chart.js` (sem framework) |
+| CI/CD | `GitHub Actions` (scraping + build diário) |
+| Publicação | `GitHub Pages` |
 
-### Escopo do banco vs. escopo do dashboard
-
-O **banco de dados** guarda o histórico completo coletado (legislatura atual + anterior,
-2021–2028) para permitir análises futuras (ex.: comparar mandatos, estudar reeleições).
-
-O **dashboard público**, por outro lado, existe para a população acompanhar o trabalho dos
-vereadores *em exercício* — por isso ele filtra automaticamente para mostrar apenas: (1)
-proposituras a partir do início do mandato vigente e (2) vereadores com perfil completo (ou
-seja, que estão na listagem atual do site). Vereadores da legislatura anterior que não foram
-reeleitos não aparecem no dashboard, mesmo estando no banco.
-
-## Uso
+## Como rodar localmente
 
 ```bash
 pip install -r requirements.txt
 
-# Cria o banco (idempotente, roda também na primeira vez que o scraper for executado)
+# Cria o banco (idempotente)
 python setup_database.py
 
 # Coleta completa (vereadores + proposituras)
 python -m src.main --mode full
 
-# Só vereadores, ou só proposituras
-python -m src.main --mode vereadores
-python -m src.main --mode proposituras
+# Remuneração (portal de transparência - requer Playwright)
+python -m src.scraper_transparencia
 
 # Exporta o recorte da legislatura atual para site/data/*.json
 python -m src.export_json
 
-# Site estático local (a partir da pasta site/)
-cd site && python -m http.server 8080   # depois abra http://localhost:8080/index.html
+# Resumo por IA (opcional - requer GEMINI_API_KEY em .env)
+python -m src.gerar_resumos
 
-# Dashboard interno (Streamlit)
-streamlit run streamlit_app.py
+# Site estático local
+cd site && python -m http.server 8080   # depois abra http://localhost:8080/index.html
 ```
 
-O banco (`data/camara_botucatu.db`) e o JSON exportado (`site/data/*.json`) **não são
-versionados** (estão no `.gitignore`) - são gerados localmente pelos comandos acima, ou pelo
-workflow de deploy antes de publicar o site. Abrir os arquivos `.html` direto (`file://`) não
-funciona - o navegador bloqueia o carregamento do JSON local por segurança; é preciso servir via
-um servidor (local, acima, ou o GitHub Pages em produção).
+O banco (`data/camara_botucatu.db`) e o JSON exportado (`site/data/*.json`) não são versionados -
+são gerados localmente pelos comandos acima, ou automaticamente pelo workflow de deploy.
 
-## Atualização automática e publicação
+## Estrutura do projeto
 
-`.github/workflows/deploy-site.yml` roda diariamente (e a cada push nesta branch): executa o
-scraper, gera o JSON com `export_json.py` e publica a pasta `site/` no GitHub Pages via
-`actions/deploy-pages`. **Configuração única necessária no GitHub**: em Settings → Pages,
-definir Source = "GitHub Actions" no repositório.
+```
+src/
+├── config.py                  # Taxonomia de tipos/famílias e das 14 categorias de assunto
+├── database.py                 # Schema e acesso ao SQLite
+├── scraper_vereadores.py       # Vereadores + perfil (bio, legislaturas, comissões)
+├── scraper_proposituras.py     # Busca paginada de proposituras (Siscam)
+├── scraper_transparencia.py    # Remuneração via portal de transparência (Playwright)
+├── export_json.py              # Classificação + exportação para site/data/*.json
+├── gerar_resumos.py            # Resumo por IA (offline, versionado em resumos_atuacao.json)
+└── main.py                     # CLI orquestrador do scraper
+site/                           # Site público estático
+├── index.html / vereador.html / comparar.html / buscar.html
+├── assets/{style.css,data.js,layout.js,charts.js}
+└── data/*.json                 # Gerado por export_json.py - não versionado
+.github/workflows/
+├── deploy-site.yml             # Scraper + export_json + publica no GitHub Pages (diário)
+└── scrape.yml                  # Validação sob demanda do scraper contra o site oficial
+```
 
-`.github/workflows/scrape.yml` continua existindo só como verificação sob demanda de que o
-scraper funciona contra o site oficial (não publica nada).
+## Screenshot: perfil do vereador
 
-## Notebooks antigos
+![Perfil do vereador com resumo por IA](docs/screenshots/perfil-vereador.png)
 
-`notebooks/Ciclo1.ipynb` a `Ciclo5.ipynb` e `exemplo_uso.ipynb` são o histórico de aprendizado que
-deu origem a este projeto (scraping da versão antiga do site, hoje fora do ar). Não fazem mais
-parte do pipeline ativo, mas ficam no repositório como registro da evolução do projeto.
+---
 
-`archive/img/` guarda as fotos baixadas pelo scraper antigo (site anterior) - mantidas por
-histórico; o scraper atual não baixa mais fotos, usa o link direto (`foto_url`) do site oficial.
+Projeto pessoal e independente, sem vínculo com a Câmara Municipal ou a Prefeitura de Botucatu.
+Todos os dados são públicos e coletados diretamente do site oficial da Câmara.
